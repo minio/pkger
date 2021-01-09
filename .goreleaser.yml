@@ -1,0 +1,35 @@
+project_name: pkger
+
+before:
+  hooks:
+    - go mod tidy
+builds:
+  -
+    goos:
+      - linux
+    goarch:
+      - amd64
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X main.version={{.Tag}}
+archives:
+  -
+    files:
+      - README.md
+      - LICENSE
+nfpms:
+  -
+    vendor: MinIO Inc.
+    homepage: https://github.com/minio/pkger
+    maintainer: MinIO Development <dev@minio.io>
+    description: Debian, RPMs and APKs for MinIO
+    license: GNU Affero General Public License v3.0
+    formats:
+      - deb
+      - rpm
+    replacements:
+      linux: linux
+      amd64: x86_64

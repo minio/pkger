@@ -23,16 +23,16 @@ var (
 	version        = "v1.0"
 	releaseMatcher = regexp.MustCompile(`[0-9]`)
 
-	app     = kingpin.New("pkger", "debian and rpms for minio")
-	appName = app.Flag("appName", "which package to build deb and rpm for").
+	app     = kingpin.New("pkger", "Debian, RPMs and APKs for MinIO")
+	appName = app.Flag("appName", "Application name for the package").
 		Default("minio").
 		Short('a').
 		String()
-	release = app.Flag("release", "current release tag").
+	release = app.Flag("release", "Current release tag").
 		Default("").
 		Short('r').
 		String()
-	packager = app.Flag("packager", "which packager implementation to use").
+	packager = app.Flag("packager", "Select packager implementation to use, defaults to: `deb,rpm,apk`").
 			Default("deb,rpm,apk").
 			Short('p').
 			Enum("deb", "rpm", "apk", "deb,rpm,apk")
