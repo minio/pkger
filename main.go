@@ -2,8 +2,11 @@ package main
 
 import (
 	"bytes"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -11,6 +14,7 @@ import (
 	"text/template"
 
 	"github.com/alecthomas/kingpin"
+	sha256 "github.com/minio/sha256-simd"
 
 	"github.com/goreleaser/nfpm/v2"
 	_ "github.com/goreleaser/nfpm/v2/apk"
@@ -125,21 +129,29 @@ func doPackage(appName, release, packager string) error {
 				return err
 			}
 
-			tgtPath := filepath.Join(appName+"-release", "linux-"+arch, pkg.ConventionalFileName(info))
+			releasePkg := pkg.ConventionalFileName(info)
+			tgtPath := filepath.Join(appName+"-release", "linux-"+arch, releasePkg)
 			f, err := os.Create(tgtPath)
 			if err != nil {
 				return err
 			}
 
-			info.Target = tgtPath
+			sh := sha256.New()
 
-			err = pkg.Package(info, f)
+			info.Target = tgtPath
+			err = pkg.Package(info, io.MultiWriter(f, sh))
 			_ = f.Close()
 			if err != nil {
 				os.Remove(tgtPath)
 				return err
 			}
 
+			tgtShasum := sh.Sum(nil)
+			tgtPathShasum := tgtPath + ".sha256sum"
+			if err = ioutil.WriteFile(tgtPathShasum, []byte(fmt.Sprintf("%s  %s", hex.EncodeToString(tgtShasum), releasePkg)), 0644); err != nil {
+				os.Remove(tgtPath)
+				return err
+			}
 			fmt.Printf("created package: %s\n", tgtPath)
 		}
 	}
