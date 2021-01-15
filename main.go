@@ -1,3 +1,22 @@
+// +build go1.14
+
+/*
+ * Copyright (C) 2020, MinIO, Inc.
+ *
+ * This code is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License, version 3,
+ * as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License, version 3,
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>
+ *
+ */
+
 package main
 
 import (
@@ -63,23 +82,26 @@ contents:
 
 const dlURLPrefix = "https://dl.minio.io/server/minio/release/"
 
+type dlInfo struct {
+	Text     string `json:"text"`
+	Checksum string `json:"cksum"`
+	Download string `json:"download"`
+}
+
 type downloadJSON struct {
-	Bin          string `json:"Bin"`
-	BinText      string `json:"BinText"`
-	BinCksum     string `json:"BinCksum"`
-	RPM          string `json:"RPM,omitempty"`
-	RPMCksum     string `json:"RPMCksum,omitempty"`
-	RPMText      string `json:"RPMText,omitempty"`
-	Deb          string `json:"DEB,omitempty"`
-	DebCksum     string `json:"DEBCksum,omitempty"`
-	DebText      string `json:"DEBText,omitempty"`
-	HomebrewText string `json:"HomebrewText,omitempty"`
+	Text     string  `json:"text,omitempty"`
+	Bin      *dlInfo `json:"Binary,omitempty"`
+	RPM      *dlInfo `json:"RPM,omitempty"`
+	Deb      *dlInfo `json:"DEB,omitempty"`
+	Homebrew *dlInfo `json:"Homebrew,omitempty"`
 }
 
 type downloadsJSON struct {
-	Linux   map[string]map[string]downloadJSON `json:"Linux"`
-	MacOS   map[string]map[string]downloadJSON `json:"MacOS"`
-	Windows map[string]map[string]downloadJSON `json:"Windows"`
+	Kubernetes map[string]map[string]downloadJSON `json:"Kubernetes"`
+	Docker     map[string]map[string]downloadJSON `json:"Docker"`
+	Linux      map[string]map[string]downloadJSON `json:"Linux"`
+	MacOS      map[string]map[string]downloadJSON `json:"MacOS"`
+	Windows    map[string]map[string]downloadJSON `json:"Windows"`
 }
 
 var rpmArchMap = map[string]string{
@@ -96,11 +118,28 @@ var debArchMap = map[string]string{
 	"ppc64le": "ppc64el",
 }
 
-func generateDownloadsJSON(semVerTag string) downloadsJSON {
+func generateDownloadsJSON(semVerTag string, appName string) downloadsJSON {
 	d := downloadsJSON{
-		Linux:   make(map[string]map[string]downloadJSON),
-		MacOS:   make(map[string]map[string]downloadJSON),
-		Windows: make(map[string]map[string]downloadJSON),
+		Linux:      make(map[string]map[string]downloadJSON),
+		MacOS:      make(map[string]map[string]downloadJSON),
+		Windows:    make(map[string]map[string]downloadJSON),
+		Docker:     make(map[string]map[string]downloadJSON),
+		Kubernetes: make(map[string]map[string]downloadJSON),
+	}
+
+	if appName == "minio" {
+		d.Linux["MinIO Server"] = map[string]downloadJSON{}
+		d.MacOS["MinIO Server"] = map[string]downloadJSON{}
+		d.Windows["MinIO Server"] = map[string]downloadJSON{}
+		d.Docker["MinIO Server"] = map[string]downloadJSON{}
+		d.Kubernetes["MinIO Server"] = map[string]downloadJSON{}
+	}
+	if appName == "mc" {
+		d.Linux["MinIO Client"] = map[string]downloadJSON{}
+		d.MacOS["MinIO Client"] = map[string]downloadJSON{}
+		d.Windows["MinIO Client"] = map[string]downloadJSON{}
+		d.Docker["MinIO Client"] = map[string]downloadJSON{}
+		d.Kubernetes["MinIO Client"] = map[string]downloadJSON{}
 	}
 	for _, linuxArch := range []string{
 		"amd64",
@@ -108,89 +147,135 @@ func generateDownloadsJSON(semVerTag string) downloadsJSON {
 		"s390x",
 		"ppc64le",
 	} {
-		d.Linux["MinIO Server"] = map[string]downloadJSON{
-			linuxArch: downloadJSON{
-				Bin: fmt.Sprintf("https://dl.min.io/server/minio/release/linux-%s/minio", linuxArch),
-				BinText: fmt.Sprintf(`wget https://dl.min.io/server/minio/release/linux-%s/minio
+		if appName == "minio" {
+			d.Kubernetes["MinIO Server"][linuxArch] = downloadJSON{
+				Text: `kubectl krew install minio
+kubectl minio init
+kubectl minio tenant create --name tenant1 --servers 4 --volumes 16 --capacity 16Ti`,
+			}
+			d.Docker["MinIO Server"][linuxArch] = downloadJSON{
+				Text: `docker run -p 9000:9000 minio/minio server /data`,
+			}
+			d.Linux["MinIO Server"][linuxArch] = downloadJSON{
+				Bin: &dlInfo{
+					Download: fmt.Sprintf("https://dl.min.io/server/minio/release/linux-%s/minio", linuxArch),
+					Text: fmt.Sprintf(`wget https://dl.min.io/server/minio/release/linux-%s/minio
 chmod +x minio
 MINIO_ROOT_USER=admin MINIO_ROOT_PASSWORD=password ./minio server /mnt/data`, linuxArch),
-				BinCksum: fmt.Sprintf("https://dl.min.io/server/minio/release/linux-%s/minio.sha256sum", linuxArch),
-				RPM:      fmt.Sprintf("https://dl.min.io/server/minio/release/linux-%s/minio-%s.%s.rpm", linuxArch, semVerTag, rpmArchMap[linuxArch]),
-				RPMCksum: fmt.Sprintf("https://dl.min.io/server/minio/release/linux-%s/minio-%s.%s.rpm.sha256sum", linuxArch, semVerTag, rpmArchMap[linuxArch]),
-				RPMText: fmt.Sprintf(`dnf install https://dl.min.io/server/minio/release/linux-%s/minio-%s.%s.rpm
+					Checksum: fmt.Sprintf("https://dl.min.io/server/minio/release/linux-%s/minio.sha256sum", linuxArch),
+				},
+				RPM: &dlInfo{
+					Download: fmt.Sprintf("https://dl.min.io/server/minio/release/linux-%s/minio-%s.%s.rpm", linuxArch, semVerTag, rpmArchMap[linuxArch]),
+					Checksum: fmt.Sprintf("https://dl.min.io/server/minio/release/linux-%s/minio-%s.%s.rpm.sha256sum", linuxArch, semVerTag, rpmArchMap[linuxArch]),
+					Text: fmt.Sprintf(`dnf install https://dl.min.io/server/minio/release/linux-%s/minio-%s.%s.rpm
 MINIO_ROOT_USER=admin MINIO_ROOT_PASSWORD=password minio server /mnt/data`, linuxArch, semVerTag, rpmArchMap[linuxArch]),
-				Deb:      fmt.Sprintf("https://dl.min.io/server/minio/release/linux-%s/minio_%s_%s.deb", linuxArch, semVerTag, debArchMap[linuxArch]),
-				DebCksum: fmt.Sprintf("https://dl.min.io/server/minio/release/linux-%s/minio_%s_%s.deb.sha256sum", linuxArch, semVerTag, debArchMap[linuxArch]),
-				DebText: fmt.Sprintf(`wget https://dl.min.io/server/minio/release/linux-%s/minio_%s_%s.deb
+				},
+				Deb: &dlInfo{
+					Download: fmt.Sprintf("https://dl.min.io/server/minio/release/linux-%s/minio_%s_%s.deb", linuxArch, semVerTag, debArchMap[linuxArch]),
+					Checksum: fmt.Sprintf("https://dl.min.io/server/minio/release/linux-%s/minio_%s_%s.deb.sha256sum", linuxArch, semVerTag, debArchMap[linuxArch]),
+					Text: fmt.Sprintf(`wget https://dl.min.io/server/minio/release/linux-%s/minio_%s_%s.deb
 dpkg -i minio_%s_%s.deb
 MINIO_ROOT_USER=admin MINIO_ROOT_PASSWORD=password minio server /mnt/data`, linuxArch, semVerTag, debArchMap[linuxArch], semVerTag, debArchMap[linuxArch]),
-			},
+				},
+			}
 		}
-		d.Linux["MinIO Client"] = map[string]downloadJSON{
-			linuxArch: downloadJSON{
-				Bin: fmt.Sprintf("https://dl.min.io/client/mc/release/linux-%s/mc", linuxArch),
-				BinText: fmt.Sprintf(`wget https://dl.min.io/client/mc/release/linux-%s/mc
+		if appName == "mc" {
+			d.Kubernetes["MinIO Client"][linuxArch] = downloadJSON{
+				Text: `kubectl run my-mc -i --tty --image minio/mc:latest --command -- bash
+[root@my-mc /]# mc alias set myminio/ https://minio.svc.cluster.local MY-USER MY-PASSWORD
+[root@my-mc /]# mc ls myminio/mybucket`,
+			}
+			d.Docker["MinIO Client"][linuxArch] = downloadJSON{
+				Text: `docker run --name my-mc --hostname my-mc -it --entrypoint /bin/bash --rm minio/mc
+[root@my-mc /]# mc alias set myminio/ https://my-minio-service MY-USER MY-PASSWORD
+[root@my-mc /]# mc ls myminio/mybucket`,
+			}
+			d.Linux["MinIO Client"][linuxArch] = downloadJSON{
+				Bin: &dlInfo{
+					Download: fmt.Sprintf("https://dl.min.io/client/mc/release/linux-%s/mc", linuxArch),
+					Text: fmt.Sprintf(`wget https://dl.min.io/client/mc/release/linux-%s/mc
 chmod +x mc
 mc alias set myminio/ http://MINIO-SERVER MYUSER MYPASSWORD`, linuxArch),
-				BinCksum: fmt.Sprintf("https://dl.min.io/client/mc/release/linux-%s/mc.sha256sum", linuxArch),
-				RPM:      fmt.Sprintf("https://dl.min.io/client/mc/release/linux-%s/mc-%s.%s.rpm", linuxArch, semVerTag, rpmArchMap[linuxArch]),
-				RPMCksum: fmt.Sprintf("https://dl.min.io/client/mc/release/linux-%s/mc-%s.%s.rpm.sha256sum", linuxArch, semVerTag, rpmArchMap[linuxArch]),
-				RPMText: fmt.Sprintf(`dnf install https://dl.min.io/client/mc/release/linux-%s/mc-%s.%s.rpm
+					Checksum: fmt.Sprintf("https://dl.min.io/client/mc/release/linux-%s/mc.sha256sum", linuxArch),
+				},
+				RPM: &dlInfo{
+					Download: fmt.Sprintf("https://dl.min.io/client/mc/release/linux-%s/mc-%s.%s.rpm", linuxArch, semVerTag, rpmArchMap[linuxArch]),
+					Checksum: fmt.Sprintf("https://dl.min.io/client/mc/release/linux-%s/mc-%s.%s.rpm.sha256sum", linuxArch, semVerTag, rpmArchMap[linuxArch]),
+					Text: fmt.Sprintf(`dnf install https://dl.min.io/client/mc/release/linux-%s/mc-%s.%s.rpm
 mc alias set myminio/ http://MINIO-SERVER MYUSER MYPASSWORD`, linuxArch, semVerTag, rpmArchMap[linuxArch]),
-				Deb:      fmt.Sprintf("https://dl.min.io/client/mc/release/linux-%s/mc_%s_%s.deb", linuxArch, semVerTag, debArchMap[linuxArch]),
-				DebCksum: fmt.Sprintf("https://dl.min.io/client/mc/release/linux-%s/mc_%s_%s.deb.sha256sum", linuxArch, semVerTag, debArchMap[linuxArch]),
-				DebText: fmt.Sprintf(`wget https://dl.min.io/client/mc/release/linux-%s/mc_%s_%s.deb
+				},
+				Deb: &dlInfo{
+					Download: fmt.Sprintf("https://dl.min.io/client/mc/release/linux-%s/mc_%s_%s.deb", linuxArch, semVerTag, debArchMap[linuxArch]),
+					Checksum: fmt.Sprintf("https://dl.min.io/client/mc/release/linux-%s/mc_%s_%s.deb.sha256sum", linuxArch, semVerTag, debArchMap[linuxArch]),
+					Text: fmt.Sprintf(`wget https://dl.min.io/client/mc/release/linux-%s/mc_%s_%s.deb
 dpkg -i minio_%s_%s.deb
 mc alias set myminio/ http://MINIO-SERVER MYUSER MYPASSWORD`, linuxArch, semVerTag, debArchMap[linuxArch], semVerTag, debArchMap[linuxArch]),
-			},
+				},
+			}
 		}
 	}
 	for _, macArch := range []string{
 		"amd64",
 	} {
-		d.MacOS["MinIO Server"] = map[string]downloadJSON{
-			macArch: downloadJSON{
-				HomebrewText: `brew install minio/stable/minio
+		if appName == "minio" {
+			d.MacOS["MinIO Server"][macArch] = downloadJSON{
+				Homebrew: &dlInfo{
+					Download: fmt.Sprintf("https://dl.min.io/server/minio/release/darwin-%s/minio", macArch),
+					Checksum: fmt.Sprintf("https://dl.min.io/server/minio/release/darwin-%s/minio.sha56sum", macArch),
+					Text: `brew install minio/stable/minio
 MINIO_ROOT_USER=admin MINIO_ROOT_PASSWORD=password minio server /mnt/data`,
-				Bin:      fmt.Sprintf("https://dl.min.io/server/minio/release/darwin-%s/minio", macArch),
-				BinCksum: fmt.Sprintf("https://dl.min.io/server/minio/release/darwin-%s/minio.sha56sum", macArch),
-				BinText: fmt.Sprintf(`wget https://dl.min.io/server/minio/release/darwin-%s/minio
+				},
+				Bin: &dlInfo{
+					Download: fmt.Sprintf("https://dl.min.io/server/minio/release/darwin-%s/minio", macArch),
+					Checksum: fmt.Sprintf("https://dl.min.io/server/minio/release/darwin-%s/minio.sha56sum", macArch),
+					Text: fmt.Sprintf(`wget https://dl.min.io/server/minio/release/darwin-%s/minio
 chmod +x minio
 MINIO_ROOT_USER=admin MINIO_ROOT_PASSWORD=password ./minio server /mnt/data`, macArch),
-			},
+				},
+			}
 		}
-		d.MacOS["MinIO Client"] = map[string]downloadJSON{
-			macArch: downloadJSON{
-				HomebrewText: `brew install minio/stable/mc
+		if appName == "mc" {
+			d.MacOS["MinIO Client"][macArch] = downloadJSON{
+				Homebrew: &dlInfo{
+					Download: fmt.Sprintf("https://dl.min.io/client/mc/release/darwin-%s/mc", macArch),
+					Checksum: fmt.Sprintf("https://dl.min.io/client/mc/release/darwin-%s/mc.sha56sum", macArch),
+					Text: `brew install minio/stable/mc
 mc alias set myminio/ http://MINIO-SERVER MYUSER MYPASSWORD`,
-				Bin:      fmt.Sprintf("https://dl.min.io/client/mc/release/darwin-%s/mc", macArch),
-				BinCksum: fmt.Sprintf("https://dl.min.io/client/mc/release/darwin-%s/mc.sha56sum", macArch),
-				BinText: fmt.Sprintf(`wget https://dl.min.io/client/mc/release/darwin-%s/mc
+				},
+				Bin: &dlInfo{
+					Download: fmt.Sprintf("https://dl.min.io/client/mc/release/darwin-%s/mc", macArch),
+					Checksum: fmt.Sprintf("https://dl.min.io/client/mc/release/darwin-%s/mc.sha56sum", macArch),
+					Text: fmt.Sprintf(`wget https://dl.min.io/client/mc/release/darwin-%s/mc
 chmod +x mc
 mc alias set myminio/ http://MINIO-SERVER MYUSER MYPASSWORD`, macArch),
-			},
+				},
+			}
 		}
 	}
 	for _, winArch := range []string{
 		"amd64",
 	} {
-		d.Windows["MinIO Server"] = map[string]downloadJSON{
-			winArch: downloadJSON{
-				Bin: fmt.Sprintf("https://dl.min.io/server/minio/release/windows-%s/minio.exe", winArch),
-				BinText: fmt.Sprintf(`PS> Invoke-WebRequest -Uri "https://dl.min.io/server/minio/release/windows-%s/minio.exe" -OutFile "C:\minio.exe"
+		if appName == "minio" {
+			d.Windows["MinIO Server"][winArch] = downloadJSON{
+				Bin: &dlInfo{
+					Download: fmt.Sprintf("https://dl.min.io/server/minio/release/windows-%s/minio.exe", winArch),
+					Text: fmt.Sprintf(`PS> Invoke-WebRequest -Uri "https://dl.min.io/server/minio/release/windows-%s/minio.exe" -OutFile "C:\minio.exe"
 PS> setx MINIO_ROOT_USER admin
 PS> setx MINIO_ROOT_PASSWORD password
 PS> C:\minio.exe server F:\Data`, winArch),
-				BinCksum: fmt.Sprintf("https://dl.min.io/server/minio/release/windows-%s/minio.exe.sha56sum", winArch),
-			},
+					Checksum: fmt.Sprintf("https://dl.min.io/server/minio/release/windows-%s/minio.exe.sha56sum", winArch),
+				},
+			}
 		}
-		d.Windows["MinIO Client"] = map[string]downloadJSON{
-			winArch: downloadJSON{
-				Bin: fmt.Sprintf("https://dl.min.io/client/mc/release/windows-%s/mc.exe", winArch),
-				BinText: fmt.Sprintf(`PS> Invoke-WebRequest -Uri "https://dl.minio.io/client/mc/release/windows-amd64/mc.exe" -OutFile "C:\mc.exe"
+		if appName == "mc" {
+			d.Windows["MinIO Client"][winArch] = downloadJSON{
+				Bin: &dlInfo{
+					Download: fmt.Sprintf("https://dl.min.io/client/mc/release/windows-%s/mc.exe", winArch),
+					Text: fmt.Sprintf(`PS> Invoke-WebRequest -Uri "https://dl.minio.io/client/mc/release/windows-amd64/mc.exe" -OutFile "C:\mc.exe"
 C:\mc.exe alias set myminio/ http://MINIO-SERVER MYUSER MYPASSWORD`, winArch),
-				BinCksum: fmt.Sprintf("https://dl.min.io/client/mc/release/windows-%s/mc.exe.sha56sum", winArch),
-			},
+					Checksum: fmt.Sprintf("https://dl.min.io/client/mc/release/windows-%s/mc.exe.sha56sum", winArch),
+				},
+			}
 		}
 	}
 	return d
@@ -228,7 +313,7 @@ func doPackage(appName, release, packager string) error {
 	}
 
 	semVerTag := semVerRelease(release)
-	d := generateDownloadsJSON(semVerTag)
+	d := generateDownloadsJSON(semVerTag, appName)
 	for _, arch := range []string{
 		"amd64",
 		"arm64",
@@ -298,5 +383,5 @@ func doPackage(appName, release, packager string) error {
 	if err != nil {
 		return err
 	}
-	return ioutil.WriteFile(filepath.Join(appName+"-release", "downloads.json"), buf, 0644)
+	return ioutil.WriteFile(filepath.Join(appName+"-release", "downloads-"+appName+".json"), buf, 0644)
 }
