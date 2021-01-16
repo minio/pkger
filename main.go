@@ -75,6 +75,20 @@ description: |
 vendor: "MinIO, Inc."
 homepage: "https://min.io"
 license: "Apache v2.0"
+{{if .Conflicts}}
+overrides:
+  deb:
+    conflicts:
+    - mc
+  rpm:
+    conflicts:
+    - mc
+  apk:
+    conflicts:
+    - mc
+{{end}}
+rpm:
+  group: Applications/File
 contents:
 - src: {{ .App }}-release/{{ .OS }}-{{ .Arch }}/{{ .App }}.{{ .Release }}
   dst: /usr/local/bin/{{ .App }}
@@ -295,6 +309,7 @@ var errInsufficientParams = errors.New("a packager must be specified if output i
 
 type releaseTmpl struct {
 	App           string
+	Conflicts     bool
 	OS            string
 	Arch          string
 	Release       string
@@ -325,6 +340,7 @@ func doPackage(appName, release, packager string) error {
 			App:           appName,
 			OS:            "linux",
 			Arch:          arch,
+			Conflicts:     appName == "mc",
 			Release:       release,
 			SemVerRelease: semVerTag,
 		})
