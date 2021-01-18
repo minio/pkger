@@ -235,13 +235,13 @@ mc alias set myminio/ http://MINIO-SERVER MYUSER MYPASSWORD`, linuxArch, semVerT
 			d.MacOS["MinIO Server"][macArch] = downloadJSON{
 				Homebrew: &dlInfo{
 					Download: fmt.Sprintf("https://dl.min.io/server/minio/release/darwin-%s/minio", macArch),
-					Checksum: fmt.Sprintf("https://dl.min.io/server/minio/release/darwin-%s/minio.sha56sum", macArch),
+					Checksum: fmt.Sprintf("https://dl.min.io/server/minio/release/darwin-%s/minio.sha256sum", macArch),
 					Text: `brew install minio/stable/minio
 MINIO_ROOT_USER=admin MINIO_ROOT_PASSWORD=password minio server /mnt/data`,
 				},
 				Bin: &dlInfo{
 					Download: fmt.Sprintf("https://dl.min.io/server/minio/release/darwin-%s/minio", macArch),
-					Checksum: fmt.Sprintf("https://dl.min.io/server/minio/release/darwin-%s/minio.sha56sum", macArch),
+					Checksum: fmt.Sprintf("https://dl.min.io/server/minio/release/darwin-%s/minio.sha256sum", macArch),
 					Text: fmt.Sprintf(`wget https://dl.min.io/server/minio/release/darwin-%s/minio
 chmod +x minio
 MINIO_ROOT_USER=admin MINIO_ROOT_PASSWORD=password ./minio server /mnt/data`, macArch),
@@ -252,13 +252,13 @@ MINIO_ROOT_USER=admin MINIO_ROOT_PASSWORD=password ./minio server /mnt/data`, ma
 			d.MacOS["MinIO Client"][macArch] = downloadJSON{
 				Homebrew: &dlInfo{
 					Download: fmt.Sprintf("https://dl.min.io/client/mc/release/darwin-%s/mc", macArch),
-					Checksum: fmt.Sprintf("https://dl.min.io/client/mc/release/darwin-%s/mc.sha56sum", macArch),
+					Checksum: fmt.Sprintf("https://dl.min.io/client/mc/release/darwin-%s/mc.sha256sum", macArch),
 					Text: `brew install minio/stable/mc
 mc alias set myminio/ http://MINIO-SERVER MYUSER MYPASSWORD`,
 				},
 				Bin: &dlInfo{
 					Download: fmt.Sprintf("https://dl.min.io/client/mc/release/darwin-%s/mc", macArch),
-					Checksum: fmt.Sprintf("https://dl.min.io/client/mc/release/darwin-%s/mc.sha56sum", macArch),
+					Checksum: fmt.Sprintf("https://dl.min.io/client/mc/release/darwin-%s/mc.sha256sum", macArch),
 					Text: fmt.Sprintf(`wget https://dl.min.io/client/mc/release/darwin-%s/mc
 chmod +x mc
 mc alias set myminio/ http://MINIO-SERVER MYUSER MYPASSWORD`, macArch),
@@ -277,7 +277,7 @@ mc alias set myminio/ http://MINIO-SERVER MYUSER MYPASSWORD`, macArch),
 PS> setx MINIO_ROOT_USER admin
 PS> setx MINIO_ROOT_PASSWORD password
 PS> C:\minio.exe server F:\Data`, winArch),
-					Checksum: fmt.Sprintf("https://dl.min.io/server/minio/release/windows-%s/minio.exe.sha56sum", winArch),
+					Checksum: fmt.Sprintf("https://dl.min.io/server/minio/release/windows-%s/minio.exe.sha256sum", winArch),
 				},
 			}
 		}
@@ -287,7 +287,7 @@ PS> C:\minio.exe server F:\Data`, winArch),
 					Download: fmt.Sprintf("https://dl.min.io/client/mc/release/windows-%s/mc.exe", winArch),
 					Text: fmt.Sprintf(`PS> Invoke-WebRequest -Uri "https://dl.minio.io/client/mc/release/windows-%s/mc.exe" -OutFile "C:\mc.exe"
 C:\mc.exe alias set myminio/ http://MINIO-SERVER MYUSER MYPASSWORD`, winArch),
-					Checksum: fmt.Sprintf("https://dl.min.io/client/mc/release/windows-%s/mc.exe.sha56sum", winArch),
+					Checksum: fmt.Sprintf("https://dl.min.io/client/mc/release/windows-%s/mc.exe.sha256sum", winArch),
 				},
 			}
 		}
