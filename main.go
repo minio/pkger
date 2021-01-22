@@ -114,7 +114,7 @@ type downloadsJSON struct {
 	Kubernetes map[string]map[string]downloadJSON `json:"Kubernetes"`
 	Docker     map[string]map[string]downloadJSON `json:"Docker"`
 	Linux      map[string]map[string]downloadJSON `json:"Linux"`
-	MacOS      map[string]map[string]downloadJSON `json:"MacOS"`
+	MacOS      map[string]map[string]downloadJSON `json:"macOS"`
 	Windows    map[string]map[string]downloadJSON `json:"Windows"`
 }
 
