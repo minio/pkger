@@ -68,29 +68,14 @@ platform: "{{ .OS }}"
 version: "{{ .SemVerRelease }}"
 maintainer: "MinIO Development <dev@minio.io>"
 description: |
-  MinIO is a High Performance Object Storage released under Apache License v2.0.
-  It is API compatible with Amazon S3 cloud storage service. Use MinIO to build
-  high performance infrastructure for machine learning, analytics and application
-  data workloads.
+  {{ .Description }}
 vendor: "MinIO, Inc."
 homepage: "https://min.io"
 license: "Apache v2.0"
-{{if .Conflicts}}
-overrides:
-  deb:
-    conflicts:
-    - mc
-  rpm:
-    conflicts:
-    - mc
-  apk:
-    conflicts:
-    - mc
-{{end}}
 rpm:
   group: Applications/File
 contents:
-- src: {{ .App }}-release/{{ .OS }}-{{ .Arch }}/{{ .App }}.{{ .Release }}
+- src: {{ .Binary }}-release/{{ .OS }}-{{ .Arch }}/{{ .Binary }}.{{ .Release }}
   dst: /usr/local/bin/{{ .App }}
 `
 
@@ -213,17 +198,17 @@ mc alias set myminio/ http://MINIO-SERVER MYUSER MYPASSWORD`, linuxArch),
 					Checksum: fmt.Sprintf("https://dl.min.io/client/mc/release/linux-%s/mc.sha256sum", linuxArch),
 				},
 				RPM: &dlInfo{
-					Download: fmt.Sprintf("https://dl.min.io/client/mc/release/linux-%s/mc-%s.%s.rpm", linuxArch, semVerTag, rpmArchMap[linuxArch]),
-					Checksum: fmt.Sprintf("https://dl.min.io/client/mc/release/linux-%s/mc-%s.%s.rpm.sha256sum", linuxArch, semVerTag, rpmArchMap[linuxArch]),
-					Text: fmt.Sprintf(`dnf install https://dl.min.io/client/mc/release/linux-%s/mc-%s.%s.rpm
-mc alias set myminio/ http://MINIO-SERVER MYUSER MYPASSWORD`, linuxArch, semVerTag, rpmArchMap[linuxArch]),
+					Download: fmt.Sprintf("https://dl.min.io/client/mc/release/linux-%s/mcli-%s.%s.rpm", linuxArch, semVerTag, rpmArchMap[linuxArch]),
+					Checksum: fmt.Sprintf("https://dl.min.io/client/mc/release/linux-%s/mcli-%s.%s.rpm.sha256sum", linuxArch, semVerTag, rpmArchMap[linuxArch]),
+					Text: fmt.Sprintf(`dnf install https://dl.min.io/client/mc/release/linux-%s/mcli-%s.%s.rpm
+mcli alias set myminio/ http://MINIO-SERVER MYUSER MYPASSWORD`, linuxArch, semVerTag, rpmArchMap[linuxArch]),
 				},
 				Deb: &dlInfo{
-					Download: fmt.Sprintf("https://dl.min.io/client/mc/release/linux-%s/mc_%s_%s.deb", linuxArch, semVerTag, debArchMap[linuxArch]),
-					Checksum: fmt.Sprintf("https://dl.min.io/client/mc/release/linux-%s/mc_%s_%s.deb.sha256sum", linuxArch, semVerTag, debArchMap[linuxArch]),
-					Text: fmt.Sprintf(`wget https://dl.min.io/client/mc/release/linux-%s/mc_%s_%s.deb
-dpkg -i minio_%s_%s.deb
-mc alias set myminio/ http://MINIO-SERVER MYUSER MYPASSWORD`, linuxArch, semVerTag, debArchMap[linuxArch], semVerTag, debArchMap[linuxArch]),
+					Download: fmt.Sprintf("https://dl.min.io/client/mc/release/linux-%s/mcli_%s_%s.deb", linuxArch, semVerTag, debArchMap[linuxArch]),
+					Checksum: fmt.Sprintf("https://dl.min.io/client/mc/release/linux-%s/mcli_%s_%s.deb.sha256sum", linuxArch, semVerTag, debArchMap[linuxArch]),
+					Text: fmt.Sprintf(`wget https://dl.min.io/client/mc/release/linux-%s/mcli_%s_%s.deb
+dpkg -i mcli_%s_%s.deb
+mcli alias set myminio/ http://MINIO-SERVER MYUSER MYPASSWORD`, linuxArch, semVerTag, debArchMap[linuxArch], semVerTag, debArchMap[linuxArch]),
 				},
 			}
 		}
@@ -309,7 +294,8 @@ var errInsufficientParams = errors.New("a packager must be specified if output i
 
 type releaseTmpl struct {
 	App           string
-	Conflicts     bool
+	Binary        string
+	Description   string
 	OS            string
 	Arch          string
 	Release       string
@@ -317,7 +303,7 @@ type releaseTmpl struct {
 }
 
 func semVerRelease(release string) string {
-	return "0.0." + strings.Join(releaseMatcher.FindAllString(release, -1), "")
+	return strings.Join(releaseMatcher.FindAllString(release, -1), "") + ".0.0"
 }
 
 // nolint:funlen
@@ -337,10 +323,24 @@ func doPackage(appName, release, packager string) error {
 	} {
 		var buf bytes.Buffer
 		err = mtmpl.Execute(&buf, releaseTmpl{
-			App:           appName,
+			App: func() string {
+				if appName == "mc" {
+					return "mcli"
+				}
+				return appName
+			}(),
+			Binary: appName,
+			Description: func() string {
+				if appName == "mc" {
+					return `MinIO Client for cloud storage and filesystems`
+				}
+				return `MinIO is a High Performance Object Storage released under Apache License v2.0.
+  It is API compatible with Amazon S3 cloud storage service. Use MinIO to build
+  high performance infrastructure for machine learning, analytics and application
+  data workloads.`
+			}(),
 			OS:            "linux",
 			Arch:          arch,
-			Conflicts:     appName == "mc",
 			Release:       release,
 			SemVerRelease: semVerTag,
 		})
