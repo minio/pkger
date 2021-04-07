@@ -77,6 +77,8 @@ rpm:
 contents:
 - src: {{ .Binary }}-release/{{ .OS }}-{{ .Arch }}/{{ .Binary }}.{{ .Release }}
   dst: /usr/local/bin/{{ .App }}
+- src: minio.service
+  dst: /etc/systemd/system/minio.service
 `
 
 const dlURLPrefix = "https://dl.minio.io/server/minio/release/"
@@ -133,6 +135,7 @@ func generateDownloadsJSON(semVerTag string, appName string) downloadsJSON {
 		d.Docker["MinIO Server"] = map[string]downloadJSON{}
 		d.Kubernetes["MinIO Server"] = map[string]downloadJSON{}
 	}
+
 	if appName == "mc" {
 		d.Linux["MinIO Client"] = map[string]downloadJSON{}
 		d.MacOS["MinIO Client"] = map[string]downloadJSON{}
@@ -140,6 +143,7 @@ func generateDownloadsJSON(semVerTag string, appName string) downloadsJSON {
 		d.Docker["MinIO Client"] = map[string]downloadJSON{}
 		d.Kubernetes["MinIO Client"] = map[string]downloadJSON{}
 	}
+
 	for _, linuxArch := range []string{
 		"amd64",
 		"arm64",
@@ -213,8 +217,10 @@ mcli alias set myminio/ http://MINIO-SERVER MYUSER MYPASSWORD`, linuxArch, semVe
 			}
 		}
 	}
+
 	for _, macArch := range []string{
 		"amd64",
+		"arm64",
 	} {
 		if appName == "minio" {
 			d.MacOS["MinIO Server"][macArch] = downloadJSON{
