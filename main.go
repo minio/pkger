@@ -77,8 +77,10 @@ rpm:
 contents:
 - src: {{ .Binary }}-release/{{ .OS }}-{{ .Arch }}/{{ .Binary }}.{{ .Release }}
   dst: /usr/local/bin/{{ .App }}
+{{if eq .Binary "minio" }}
 - src: minio.service
   dst: /etc/systemd/system/minio.service
+{{end}}
 `
 
 const dlURLPrefix = "https://dl.minio.io/server/minio/release/"
