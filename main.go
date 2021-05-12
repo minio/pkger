@@ -187,7 +187,7 @@ MINIO_ROOT_USER=admin MINIO_ROOT_PASSWORD=password minio server /mnt/data`, linu
 		if appName == "mc" {
 			d.Kubernetes["MinIO Client"][linuxArch] = downloadJSON{
 				Text: `kubectl run my-mc -i --tty --image minio/mc:latest --command -- bash
-[root@my-mc /]# mc alias set myminio/ https://minio.svc.cluster.local MY-USER MY-PASSWORD
+[root@my-mc /]# mc alias set myminio/ https://minio.default.svc.cluster.local MY-USER MY-PASSWORD
 [root@my-mc /]# mc ls myminio/mybucket`,
 			}
 			d.Docker["MinIO Client"][linuxArch] = downloadJSON{
