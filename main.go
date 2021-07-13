@@ -159,28 +159,28 @@ kubectl minio init
 kubectl minio tenant create --name tenant1 --servers 4 --volumes 16 --capacity 16Ti`,
 			}
 			d.Docker["MinIO Server"][linuxArch] = downloadJSON{
-				Text: `docker run -p 9000:9000 minio/minio server /data`,
+				Text: `podman run -p 9000:9000 -p 9001:9001 minio/minio server /data --console-address ":9001"`,
 			}
 			d.Linux["MinIO Server"][linuxArch] = downloadJSON{
 				Bin: &dlInfo{
 					Download: fmt.Sprintf("https://dl.min.io/server/minio/release/linux-%s/minio", linuxArch),
 					Text: fmt.Sprintf(`wget https://dl.min.io/server/minio/release/linux-%s/minio
 chmod +x minio
-MINIO_ROOT_USER=admin MINIO_ROOT_PASSWORD=password ./minio server /mnt/data`, linuxArch),
+MINIO_ROOT_USER=admin MINIO_ROOT_PASSWORD=password ./minio server /mnt/data --console-address ":9001"`, linuxArch),
 					Checksum: fmt.Sprintf("https://dl.min.io/server/minio/release/linux-%s/minio.sha256sum", linuxArch),
 				},
 				RPM: &dlInfo{
 					Download: fmt.Sprintf("https://dl.min.io/server/minio/release/linux-%s/minio-%s.%s.rpm", linuxArch, semVerTag, rpmArchMap[linuxArch]),
 					Checksum: fmt.Sprintf("https://dl.min.io/server/minio/release/linux-%s/minio-%s.%s.rpm.sha256sum", linuxArch, semVerTag, rpmArchMap[linuxArch]),
 					Text: fmt.Sprintf(`dnf install https://dl.min.io/server/minio/release/linux-%s/minio-%s.%s.rpm
-MINIO_ROOT_USER=admin MINIO_ROOT_PASSWORD=password minio server /mnt/data`, linuxArch, semVerTag, rpmArchMap[linuxArch]),
+MINIO_ROOT_USER=admin MINIO_ROOT_PASSWORD=password minio server /mnt/data --console-address ":9001"`, linuxArch, semVerTag, rpmArchMap[linuxArch]),
 				},
 				Deb: &dlInfo{
 					Download: fmt.Sprintf("https://dl.min.io/server/minio/release/linux-%s/minio_%s_%s.deb", linuxArch, semVerTag, debArchMap[linuxArch]),
 					Checksum: fmt.Sprintf("https://dl.min.io/server/minio/release/linux-%s/minio_%s_%s.deb.sha256sum", linuxArch, semVerTag, debArchMap[linuxArch]),
 					Text: fmt.Sprintf(`wget https://dl.min.io/server/minio/release/linux-%s/minio_%s_%s.deb
 dpkg -i minio_%s_%s.deb
-MINIO_ROOT_USER=admin MINIO_ROOT_PASSWORD=password minio server /mnt/data`, linuxArch, semVerTag, debArchMap[linuxArch], semVerTag, debArchMap[linuxArch]),
+MINIO_ROOT_USER=admin MINIO_ROOT_PASSWORD=password minio server /mnt/data --console-address ":9001"`, linuxArch, semVerTag, debArchMap[linuxArch], semVerTag, debArchMap[linuxArch]),
 				},
 			}
 		}
@@ -191,7 +191,7 @@ MINIO_ROOT_USER=admin MINIO_ROOT_PASSWORD=password minio server /mnt/data`, linu
 [root@my-mc /]# mc ls myminio/mybucket`,
 			}
 			d.Docker["MinIO Client"][linuxArch] = downloadJSON{
-				Text: `docker run --name my-mc --hostname my-mc -it --entrypoint /bin/bash --rm minio/mc
+				Text: `podman run --name my-mc --hostname my-mc -it --entrypoint /bin/bash --rm minio/mc
 [root@my-mc /]# mc alias set myminio/ https://my-minio-service MY-USER MY-PASSWORD
 [root@my-mc /]# mc ls myminio/mybucket`,
 			}
@@ -230,14 +230,14 @@ mcli alias set myminio/ http://MINIO-SERVER MYUSER MYPASSWORD`, linuxArch, semVe
 					Download: fmt.Sprintf("https://dl.min.io/server/minio/release/darwin-%s/minio", macArch),
 					Checksum: fmt.Sprintf("https://dl.min.io/server/minio/release/darwin-%s/minio.sha256sum", macArch),
 					Text: `brew install minio/stable/minio
-MINIO_ROOT_USER=admin MINIO_ROOT_PASSWORD=password minio server /mnt/data`,
+MINIO_ROOT_USER=admin MINIO_ROOT_PASSWORD=password minio server /mnt/data --console-address ":9001"`,
 				},
 				Bin: &dlInfo{
 					Download: fmt.Sprintf("https://dl.min.io/server/minio/release/darwin-%s/minio", macArch),
 					Checksum: fmt.Sprintf("https://dl.min.io/server/minio/release/darwin-%s/minio.sha256sum", macArch),
 					Text: fmt.Sprintf(`wget https://dl.min.io/server/minio/release/darwin-%s/minio
 chmod +x minio
-MINIO_ROOT_USER=admin MINIO_ROOT_PASSWORD=password ./minio server /mnt/data`, macArch),
+MINIO_ROOT_USER=admin MINIO_ROOT_PASSWORD=password ./minio server /mnt/data --console-address ":9001"`, macArch),
 				},
 			}
 		}
@@ -269,7 +269,7 @@ mc alias set myminio/ http://MINIO-SERVER MYUSER MYPASSWORD`, macArch),
 					Text: fmt.Sprintf(`PS> Invoke-WebRequest -Uri "https://dl.min.io/server/minio/release/windows-%s/minio.exe" -OutFile "C:\minio.exe"
 PS> setx MINIO_ROOT_USER admin
 PS> setx MINIO_ROOT_PASSWORD password
-PS> C:\minio.exe server F:\Data`, winArch),
+PS> C:\minio.exe server F:\Data --console-address ":9001"`, winArch),
 					Checksum: fmt.Sprintf("https://dl.min.io/server/minio/release/windows-%s/minio.exe.sha256sum", winArch),
 				},
 			}
