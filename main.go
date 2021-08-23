@@ -156,7 +156,7 @@ func generateDownloadsJSON(semVerTag string, appName string) downloadsJSON {
 			d.Kubernetes["MinIO Server"][linuxArch] = downloadJSON{
 				Text: `kubectl krew install minio
 kubectl minio init
-kubectl minio tenant create --name tenant1 --servers 4 --volumes 16 --capacity 16Ti`,
+kubectl minio tenant create tenant1 --servers 4 --volumes 16 --capacity 16Ti`,
 			}
 			d.Docker["MinIO Server"][linuxArch] = downloadJSON{
 				Text: `podman run -p 9000:9000 -p 9001:9001 minio/minio server /data --console-address ":9001"`,
