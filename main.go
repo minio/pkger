@@ -235,7 +235,7 @@ MINIO_ROOT_USER=admin MINIO_ROOT_PASSWORD=password minio server /mnt/data --cons
 				Bin: &dlInfo{
 					Download: fmt.Sprintf("https://dl.min.io/server/minio/release/darwin-%s/minio", macArch),
 					Checksum: fmt.Sprintf("https://dl.min.io/server/minio/release/darwin-%s/minio.sha256sum", macArch),
-					Text: fmt.Sprintf(`wget https://dl.min.io/server/minio/release/darwin-%s/minio
+					Text: fmt.Sprintf(`curl --progress-bar -O https://dl.min.io/server/minio/release/darwin-%s/minio
 chmod +x minio
 MINIO_ROOT_USER=admin MINIO_ROOT_PASSWORD=password ./minio server /mnt/data --console-address ":9001"`, macArch),
 				},
@@ -252,7 +252,7 @@ mc alias set myminio/ http://MINIO-SERVER MYUSER MYPASSWORD`,
 				Bin: &dlInfo{
 					Download: fmt.Sprintf("https://dl.min.io/client/mc/release/darwin-%s/mc", macArch),
 					Checksum: fmt.Sprintf("https://dl.min.io/client/mc/release/darwin-%s/mc.sha256sum", macArch),
-					Text: fmt.Sprintf(`wget https://dl.min.io/client/mc/release/darwin-%s/mc
+					Text: fmt.Sprintf(`curl --progress-bar -O https://dl.min.io/client/mc/release/darwin-%s/mc
 chmod +x mc
 mc alias set myminio/ http://MINIO-SERVER MYUSER MYPASSWORD`, macArch),
 				},
