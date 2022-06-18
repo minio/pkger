@@ -71,7 +71,7 @@ description: |
   {{ .Description }}
 vendor: "MinIO, Inc."
 homepage: "https://min.io"
-license: "Apache v2.0"
+license: "AGPLv3"
 rpm:
   group: Applications/File
 contents:
@@ -342,7 +342,7 @@ func doPackage(appName, release, packager string) error {
 				if appName == "mc" {
 					return `MinIO Client for cloud storage and filesystems`
 				}
-				return `MinIO is a High Performance Object Storage released under Apache License v2.0.
+				return `MinIO is a High Performance Object Storage released under AGPLv3.
   It is API compatible with Amazon S3 cloud storage service. Use MinIO to build
   high performance infrastructure for machine learning, analytics and application
   data workloads.`
