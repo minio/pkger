@@ -1,7 +1,5 @@
-// +build go1.14
-
 /*
- * Copyright (C) 2020, MinIO, Inc.
+ * Copyright (C) 2020-2022, MinIO, Inc.
  *
  * This code is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License, version 3,
@@ -21,6 +19,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -34,7 +33,6 @@ import (
 
 	"github.com/alecthomas/kingpin"
 	jsoniter "github.com/json-iterator/go"
-	sha256 "github.com/minio/sha256-simd"
 
 	"github.com/goreleaser/nfpm/v2"
 	_ "github.com/goreleaser/nfpm/v2/apk"
