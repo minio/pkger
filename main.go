@@ -77,7 +77,7 @@ contents:
   dst: /usr/bin/{{ .App }}
 {{if eq .Binary "minio" }}
 - src: {{ .SystemdUnit }}
-  dst: /etc/systemd/system/minio.service
+  dst: /lib/systemd/system/minio.service
 {{end}}
 `
 
