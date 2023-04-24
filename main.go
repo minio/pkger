@@ -74,9 +74,9 @@ rpm:
   group: Applications/File
 contents:
 - src: {{ .Binary }}-release/{{ .OS }}-{{ .Arch }}/{{ .Binary }}.{{ .Release }}
-  dst: /usr/local/bin/{{ .App }}
+  dst: /usr/bin/{{ .App }}
 {{if eq .Binary "minio" }}
-- src: minio.service
+- src: {{ .SystemdUnit }}
   dst: /etc/systemd/system/minio.service
 {{end}}
 `
@@ -301,6 +301,7 @@ var errInsufficientParams = errors.New("a packager must be specified if output i
 type releaseTmpl struct {
 	App           string
 	Binary        string
+	SystemdUnit   string
 	Description   string
 	OS            string
 	Arch          string
@@ -312,8 +313,40 @@ func semVerRelease(release string) string {
 	return strings.Join(releaseMatcher.FindAllString(release, -1), "") + ".0.0"
 }
 
+func rewriteSystemdUnit() (path string, cleanup func(), err error) {
+	original, err := os.ReadFile("minio.service")
+	if err != nil {
+		return
+	}
+
+	fixed := bytes.ReplaceAll(original, []byte("/usr/local"), []byte("/usr"))
+
+	f, err := os.CreateTemp("", "")
+	if err != nil {
+		return
+	}
+	defer f.Close()
+
+	_, err = f.Write(fixed)
+	if err != nil {
+		return
+	}
+
+	path = f.Name()
+	cleanup = func() {
+		os.Remove(f.Name())
+	}
+	return
+}
+
 // nolint:funlen
 func doPackage(appName, release, packager string) error {
+	systemdUnit, cleanupSystemdUnit, err := rewriteSystemdUnit()
+	if err != nil {
+		return err
+	}
+	defer cleanupSystemdUnit()
+
 	mtmpl, err := template.New("minio").Parse(tmpl)
 	if err != nil {
 		return err
@@ -335,7 +368,8 @@ func doPackage(appName, release, packager string) error {
 				}
 				return appName
 			}(),
-			Binary: appName,
+			Binary:      appName,
+			SystemdUnit: systemdUnit,
 			Description: func() string {
 				if appName == "mc" {
 					return `MinIO Client for cloud storage and filesystems`
