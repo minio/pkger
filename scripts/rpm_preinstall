@@ -1,0 +1,4 @@
+getent group minio-user >/dev/null || groupadd -r minio-user
+getent passwd minio-user >/dev/null || \
+    useradd -r -g minio-user -d / -s /sbin/nologin minio-user
+exit 0

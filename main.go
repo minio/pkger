@@ -357,6 +357,25 @@ func doPackage(appName, release, packager string) error {
 		}
 
 		for _, pkger := range strings.Split(packager, ",") {
+			switch pkger {
+			case "deb":
+				config.Depends = []string{"adduser"}
+				config.Scripts.PreInstall = ""
+				config.Scripts.PostInstall = "./scripts/deb_postinst"
+			case "rpm":
+				config.Depends = []string{"shadow-utils"}
+				config.Scripts.PreInstall = "./scripts/rpm_preinstall"
+				config.Scripts.PostInstall = ""
+			case "apk":
+				config.Depends = []string{}
+				config.Scripts.PreInstall = "./scripts/apk_preinstall"
+				config.Scripts.PostInstall = ""
+			default:
+				config.Depends = []string{}
+				config.Scripts.PreInstall = ""
+				config.Scripts.PostInstall = ""
+			}
+
 			info, err := config.Get(pkger)
 			if err != nil {
 				return err

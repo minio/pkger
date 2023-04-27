@@ -1,0 +1,11 @@
+#!/bin/sh
+set -e
+
+if [ "$1" = configure ]; then
+    adduser --system \
+            --quiet \
+            --home /nonexistent \
+            --no-create-home \
+            --group \
+            minio-user
+fi
