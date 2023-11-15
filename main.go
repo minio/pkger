@@ -381,6 +381,18 @@ func doPackage(appName, release, packager string) error {
 				return err
 			}
 
+			{
+				curDir, err := os.Getwd()
+				if err != nil {
+					return err
+				}
+
+				os.Chdir(filepath.Dir(tgtPath))
+				os.Remove(appName + filepath.Ext(tgtPath))
+				os.Symlink(releasePkg, appName+filepath.Ext(tgtPath))
+				os.Chdir(curDir)
+			}
+
 			sh := sha256.New()
 
 			info.Target = tgtPath
