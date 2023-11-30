@@ -21,10 +21,8 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -80,8 +78,6 @@ contents:
   dst: /lib/systemd/system/minio.service
 {{end}}
 `
-
-const dlURLPrefix = "https://dl.minio.io/server/minio/release/"
 
 type dlInfo struct {
 	Text     string `json:"text"`
@@ -290,13 +286,14 @@ func main() {
 	app.Version(version)
 	app.VersionFlag.Short('v')
 	app.HelpFlag.Short('h')
-	app.Parse(os.Args[1:])
+	if _, err := app.Parse(os.Args[1:]); err != nil {
+		kingpin.Fatalf(err.Error())
+	}
+
 	if err := doPackage(*appName, *release, *packager); err != nil {
 		kingpin.Fatalf(err.Error())
 	}
 }
-
-var errInsufficientParams = errors.New("a packager must be specified if output is a directory or blank")
 
 type releaseTmpl struct {
 	App           string
@@ -350,6 +347,9 @@ func doPackage(appName, release, packager string) error {
 			Release:       release,
 			SemVerRelease: semVerTag,
 		})
+		if err != nil {
+			return err
+		}
 
 		config, err := nfpm.Parse(&buf)
 		if err != nil {
@@ -387,10 +387,10 @@ func doPackage(appName, release, packager string) error {
 					return err
 				}
 
-				os.Chdir(filepath.Dir(tgtPath))
-				os.Remove(appName + filepath.Ext(tgtPath))
-				os.Symlink(releasePkg, appName+filepath.Ext(tgtPath))
-				os.Chdir(curDir)
+				_ = os.Chdir(filepath.Dir(tgtPath))
+				_ = os.Remove(appName + filepath.Ext(tgtPath))
+				_ = os.Symlink(releasePkg, appName+filepath.Ext(tgtPath))
+				_ = os.Chdir(curDir)
 			}
 
 			sh := sha256.New()
@@ -405,7 +405,7 @@ func doPackage(appName, release, packager string) error {
 
 			tgtShasum := sh.Sum(nil)
 			tgtPathShasum := tgtPath + ".sha256sum"
-			if err = ioutil.WriteFile(tgtPathShasum, []byte(fmt.Sprintf("%s  %s", hex.EncodeToString(tgtShasum), releasePkg)), 0644); err != nil {
+			if err = os.WriteFile(tgtPathShasum, []byte(fmt.Sprintf("%s  %s", hex.EncodeToString(tgtShasum), releasePkg)), 0644); err != nil {
 				os.Remove(tgtPath)
 				return err
 			}
@@ -417,5 +417,5 @@ func doPackage(appName, release, packager string) error {
 	if err != nil {
 		return err
 	}
-	return ioutil.WriteFile(filepath.Join(appName+"-release", "downloads-"+appName+".json"), buf, 0644)
+	return os.WriteFile(filepath.Join(appName+"-release", "downloads-"+appName+".json"), buf, 0644)
 }
