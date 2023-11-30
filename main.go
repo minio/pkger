@@ -28,6 +28,7 @@ import (
 	"regexp"
 	"strings"
 	"text/template"
+	"time"
 
 	"github.com/alecthomas/kingpin"
 	jsoniter "github.com/json-iterator/go"
@@ -48,6 +49,10 @@ var (
 		Default("minio").
 		Short('a').
 		String()
+	ignoreMissingArch = app.Flag("ignore", "ignore any missing arch while packaging").
+				Default("false").
+				Short('i').
+				Bool()
 	release = app.Flag("release", "Current release tag").
 		Default("").
 		Short('r').
@@ -305,8 +310,37 @@ type releaseTmpl struct {
 	SemVerRelease string
 }
 
+const (
+	minioReleaseTagTimeLayout    = "2006-01-02T15-04-05Z"
+	minioPkgReleaseTagTimeLayout = "20060102150405"
+)
+
+// releaseTagToReleaseTime - reverse of `releaseTimeToReleaseTag()`
+func releaseTagToReleaseTime(releaseTag string) (releaseTime time.Time, fields []string, err error) {
+	fields = strings.Split(releaseTag, ".")
+	if len(fields) < 2 || len(fields) > 4 {
+		return releaseTime, nil, fmt.Errorf("%s is not a valid release tag", releaseTag)
+	}
+	if fields[0] != "RELEASE" {
+		return releaseTime, nil, fmt.Errorf("%s is not a valid release tag", releaseTag)
+	}
+	releaseTime, err = time.Parse(minioReleaseTagTimeLayout, fields[1])
+	return releaseTime, fields, err
+}
+
 func semVerRelease(release string) string {
-	return strings.Join(releaseMatcher.FindAllString(release, -1), "") + ".0.0"
+	rtime, fields, err := releaseTagToReleaseTime(release)
+	if err != nil {
+		panic(err)
+	}
+	var hotfixStr string
+	if len(fields) == 4 {
+		hotfixStr = fields[2] + "." + fields[3]
+	}
+	if hotfixStr != "" {
+		return rtime.Format(minioPkgReleaseTagTimeLayout) + ".0.0." + hotfixStr
+	}
+	return rtime.Format(minioPkgReleaseTagTimeLayout) + ".0.0"
 }
 
 // nolint:funlen
@@ -365,6 +399,9 @@ func doPackage(appName, release, packager string) error {
 			info = nfpm.WithDefaults(info)
 
 			if err = nfpm.Validate(info); err != nil {
+				if *ignoreMissingArch {
+					continue
+				}
 				return err
 			}
 
