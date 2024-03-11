@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020-2022, MinIO, Inc.
+ * Copyright (C) 2020-2024, MinIO, Inc.
  *
  * This code is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License, version 3,
@@ -129,6 +129,12 @@ func generateDownloadsJSON(semVerTag string, appName string) downloadsJSON {
 		Kubernetes: make(map[string]map[string]downloadJSON),
 	}
 
+	if appName == "minio-enterprise" {
+		d.Linux["MinIO Enterprise Object Store"] = map[string]downloadJSON{}
+		d.Windows["MinIO Enterprise Object Store"] = map[string]downloadJSON{}
+		d.Kubernetes["MinIO Enterprise Object Store"] = map[string]downloadJSON{}
+	}
+
 	if appName == "minio" {
 		d.Linux["MinIO Server"] = map[string]downloadJSON{}
 		d.MacOS["MinIO Server"] = map[string]downloadJSON{}
@@ -151,6 +157,36 @@ func generateDownloadsJSON(semVerTag string, appName string) downloadsJSON {
 		"s390x",
 		"ppc64le",
 	} {
+		if appName == "minio-enterprise" {
+			d.Kubernetes["MinIO Enterprise Object Store"][linuxArch] = downloadJSON{
+				Text: fmt.Sprintf(`wget https://dl.min.io/enterprise/kubectl-minio/release/linux-%s/kubectl-minio
+chmod +x kubectl-minio
+./kubectl-minio init
+./kubectl-minio tenant create tenant1 --servers 4 --volumes 16 --capacity 16Ti`, linuxArch),
+			}
+			d.Linux["MinIO Enterprise Object Store"][linuxArch] = downloadJSON{
+				Bin: &dlInfo{
+					Download: fmt.Sprintf("https://dl.min.io/enterprise/minio/release/linux-%s/minio", linuxArch),
+					Text: fmt.Sprintf(`wget https://dl.min.io/enterprise/minio/release/linux-%s/minio
+chmod +x minio
+MINIO_ROOT_USER=admin MINIO_ROOT_PASSWORD=password ./minio server /mnt/data --console-address ":9001"`, linuxArch),
+					Checksum: fmt.Sprintf("https://dl.min.io/enterprise/minio/release/linux-%s/minio.sha256sum", linuxArch),
+				},
+				RPM: &dlInfo{
+					Download: fmt.Sprintf("https://dl.min.io/enterprise/minio/release/linux-%s/minio-%s-1.%s.rpm", linuxArch, semVerTag, rpmArchMap[linuxArch]),
+					Checksum: fmt.Sprintf("https://dl.min.io/enterprise/minio/release/linux-%s/minio-%s-1.%s.rpm.sha256sum", linuxArch, semVerTag, rpmArchMap[linuxArch]),
+					Text: fmt.Sprintf(`dnf install https://dl.min.io/enterprise/minio/release/linux-%s/minio-%s-1.%s.rpm
+MINIO_ROOT_USER=admin MINIO_ROOT_PASSWORD=password minio server /mnt/data --console-address ":9001"`, linuxArch, semVerTag, rpmArchMap[linuxArch]),
+				},
+				Deb: &dlInfo{
+					Download: fmt.Sprintf("https://dl.min.io/enterprise/minio/release/linux-%s/minio_%s_%s.deb", linuxArch, semVerTag, debArchMap[linuxArch]),
+					Checksum: fmt.Sprintf("https://dl.min.io/enterprise/minio/release/linux-%s/minio_%s_%s.deb.sha256sum", linuxArch, semVerTag, debArchMap[linuxArch]),
+					Text: fmt.Sprintf(`wget https://dl.min.io/enterprise/minio/release/linux-%s/minio_%s_%s.deb
+dpkg -i minio_%s_%s.deb
+MINIO_ROOT_USER=admin MINIO_ROOT_PASSWORD=password minio server /mnt/data --console-address ":9001"`, linuxArch, semVerTag, debArchMap[linuxArch], semVerTag, debArchMap[linuxArch]),
+				},
+			}
+		}
 		if appName == "minio" {
 			d.Kubernetes["MinIO Server"][linuxArch] = downloadJSON{
 				Text: `kubectl krew install minio
@@ -261,6 +297,18 @@ mc alias set myminio/ http://MINIO-SERVER MYUSER MYPASSWORD`, macArch),
 	for _, winArch := range []string{
 		"amd64",
 	} {
+		if appName == "minio-enterprise" {
+			d.Windows["MinIO Enterprise Object Store"][winArch] = downloadJSON{
+				Bin: &dlInfo{
+					Download: fmt.Sprintf("https://dl.min.io/enterprise/minio/release/windows-%s/minio.exe", winArch),
+					Text: fmt.Sprintf(`PS> Invoke-WebRequest -Uri "https://dl.min.io/enterprise/minio/release/windows-%s/minio.exe" -OutFile "C:\minio.exe"
+PS> setx MINIO_ROOT_USER admin
+PS> setx MINIO_ROOT_PASSWORD password
+cPS> C:\minio.exe server F:\Data --console-address ":9001"`, winArch),
+					Checksum: fmt.Sprintf("https://dl.min.io/enterprise/minio/release/windows-%s/minio.exe.sha256sum", winArch),
+				},
+			}
+		}
 		if appName == "minio" {
 			d.Windows["MinIO Server"][winArch] = downloadJSON{
 				Bin: &dlInfo{
@@ -361,13 +409,27 @@ func doPackage(appName, release, packager string) error {
 		var buf bytes.Buffer
 		err = mtmpl.Execute(&buf, releaseTmpl{
 			App: func() string {
+				if appName == "minio-enterprise" {
+					return "minio"
+				}
 				if appName == "mc" {
 					return "mcli"
 				}
 				return appName
 			}(),
-			Binary: appName,
+			Binary: func() string {
+				if appName == "minio-enterprise" {
+					return "minio"
+				}
+				return appName
+			}(),
 			Description: func() string {
+				if appName == "minio-enterprise" {
+					return `MinIO Enterprise Object Store is Enterprise hardened version of MinIO. 
+  It is API compatible with Amazon S3 cloud storage service. Use MinIO to build
+  high performance infrastructure for machine learning, analytics and application
+  data workloads.`
+				}
 				if appName == "mc" {
 					return `MinIO Client for cloud storage and filesystems`
 				}
@@ -412,7 +474,12 @@ func doPackage(appName, release, packager string) error {
 			}
 
 			releasePkg := pkg.ConventionalFileName(info)
-			tgtPath := filepath.Join(appName+"-release", "linux-"+arch, releasePkg)
+			tgtPath := filepath.Join(func() string {
+				if appName == "minio-enterprise" {
+					return "minio"
+				}
+				return appName
+			}()+"-release", "linux-"+arch, releasePkg)
 			f, err := os.Create(tgtPath)
 			if err != nil {
 				return err
@@ -425,8 +492,18 @@ func doPackage(appName, release, packager string) error {
 				}
 
 				_ = os.Chdir(filepath.Dir(tgtPath))
-				_ = os.Remove(appName + filepath.Ext(tgtPath))
-				_ = os.Symlink(releasePkg, appName+filepath.Ext(tgtPath))
+				_ = os.Remove(func() string {
+					if appName == "minio-enterprise" {
+						return "minio"
+					}
+					return appName
+				}() + filepath.Ext(tgtPath))
+				_ = os.Symlink(releasePkg, func() string {
+					if appName == "minio-enterprise" {
+						return "minio"
+					}
+					return appName
+				}()+filepath.Ext(tgtPath))
 				_ = os.Chdir(curDir)
 			}
 
@@ -454,5 +531,10 @@ func doPackage(appName, release, packager string) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(appName+"-release", "downloads-"+appName+".json"), buf, 0644)
+	return os.WriteFile(filepath.Join(func() string {
+		if appName == "minio-enterprise" {
+			return "minio"
+		}
+		return appName
+	}()+"-release", "downloads-"+appName+".json"), buf, 0644)
 }
