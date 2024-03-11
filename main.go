@@ -203,9 +203,9 @@ mc alias set myminio/ http://MINIO-SERVER MYUSER MYPASSWORD`, linuxArch),
 					Checksum: fmt.Sprintf("https://dl.min.io/client/mc/release/linux-%s/mc.sha256sum", linuxArch),
 				},
 				RPM: &dlInfo{
-					Download: fmt.Sprintf("https://dl.min.io/client/mc/release/linux-%s/mcli-%s.%s.rpm", linuxArch, semVerTag, rpmArchMap[linuxArch]),
-					Checksum: fmt.Sprintf("https://dl.min.io/client/mc/release/linux-%s/mcli-%s.%s.rpm.sha256sum", linuxArch, semVerTag, rpmArchMap[linuxArch]),
-					Text: fmt.Sprintf(`dnf install https://dl.min.io/client/mc/release/linux-%s/mcli-%s.%s.rpm
+					Download: fmt.Sprintf("https://dl.min.io/client/mc/release/linux-%s/mcli-%s-1.%s.rpm", linuxArch, semVerTag, rpmArchMap[linuxArch]),
+					Checksum: fmt.Sprintf("https://dl.min.io/client/mc/release/linux-%s/mcli-%s-1.%s.rpm.sha256sum", linuxArch, semVerTag, rpmArchMap[linuxArch]),
+					Text: fmt.Sprintf(`dnf install https://dl.min.io/client/mc/release/linux-%s/mcli-%s-1.%s.rpm
 mcli alias set myminio/ http://MINIO-SERVER MYUSER MYPASSWORD`, linuxArch, semVerTag, rpmArchMap[linuxArch]),
 				},
 				Deb: &dlInfo{
