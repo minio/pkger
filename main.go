@@ -98,11 +98,15 @@ type downloadJSON struct {
 	Homebrew *dlInfo `json:"Homebrew,omitempty"`
 }
 
+type enterpriseDownloadsJSON struct {
+	Subscriptions map[string]downloadsJSON
+}
+
 type downloadsJSON struct {
 	Kubernetes map[string]map[string]downloadJSON `json:"Kubernetes"`
-	Docker     map[string]map[string]downloadJSON `json:"Docker"`
+	Docker     map[string]map[string]downloadJSON `json:"Docker,omitempty"`
 	Linux      map[string]map[string]downloadJSON `json:"Linux"`
-	MacOS      map[string]map[string]downloadJSON `json:"macOS"`
+	MacOS      map[string]map[string]downloadJSON `json:"macOS,omitempty"`
 	Windows    map[string]map[string]downloadJSON `json:"Windows"`
 }
 
@@ -120,6 +124,131 @@ var debArchMap = map[string]string{
 	"ppc64le": "ppc64el",
 }
 
+func generateEnterpriseDownloadsJSON(semVerTag string) enterpriseDownloadsJSON {
+	d := enterpriseDownloadsJSON{
+		Subscriptions: map[string]downloadsJSON{},
+	}
+	d.Subscriptions["Standard"] = downloadsJSON{
+		Kubernetes: make(map[string]map[string]downloadJSON),
+		Linux:      make(map[string]map[string]downloadJSON),
+		Windows:    make(map[string]map[string]downloadJSON),
+	}
+	d.Subscriptions["Enterprise"] = downloadsJSON{
+		Kubernetes: make(map[string]map[string]downloadJSON),
+		Linux:      make(map[string]map[string]downloadJSON),
+		Windows:    make(map[string]map[string]downloadJSON),
+	}
+	d.Subscriptions["Enterprise-Lite"] = downloadsJSON{
+		Kubernetes: make(map[string]map[string]downloadJSON),
+		Linux:      make(map[string]map[string]downloadJSON),
+		Windows:    make(map[string]map[string]downloadJSON),
+	}
+	d.Subscriptions["Enterprise-Plus"] = downloadsJSON{
+		Kubernetes: make(map[string]map[string]downloadJSON),
+		Linux:      make(map[string]map[string]downloadJSON),
+		Windows:    make(map[string]map[string]downloadJSON),
+	}
+	for subscription := range d.Subscriptions {
+		d.Subscriptions[subscription].Linux["MinIO Object Store"] = map[string]downloadJSON{}
+		if subscription == "Enterprise-Lite" || subscription == "Enterprise-Plus" {
+			d.Subscriptions[subscription].Linux["MinIO KMS"] = map[string]downloadJSON{}
+			d.Subscriptions[subscription].Linux["MinIO Catalog"] = map[string]downloadJSON{}
+			d.Subscriptions[subscription].Linux["MinIO Firewall"] = map[string]downloadJSON{}
+			d.Subscriptions[subscription].Linux["MinIO Cache"] = map[string]downloadJSON{}
+		}
+		d.Subscriptions[subscription].Windows["MinIO Object Store"] = map[string]downloadJSON{}
+		d.Subscriptions[subscription].Kubernetes["MinIO Object Store"] = map[string]downloadJSON{}
+	}
+
+	for subscription := range d.Subscriptions {
+		for _, arch := range []string{
+			"amd64",
+			"arm64",
+		} {
+			if subscription == "Standard" || subscription == "Enterprise" {
+				d.Subscriptions[subscription].Kubernetes["MinIO Object Store"][arch] = downloadJSON{
+					Text: `kubectl apply -f dl.min.io/enterprise/operator`,
+				}
+				if arch == "amd64" {
+					d.Subscriptions[subscription].Windows["MinIO Object Store"][arch] = downloadJSON{
+						Bin: &dlInfo{
+							Download: fmt.Sprintf("https://dl.min.io/enterprise/minio/release/windows-%s/minio.exe", arch),
+							Text: fmt.Sprintf(`PS> Invoke-WebRequest -Uri "https://dl.min.io/enterprise/minio/release/windows-%s/minio.exe" -OutFile "C:\minio.exe"
+PS> setx MINIO_ROOT_USER admin
+PS> setx MINIO_ROOT_PASSWORD password
+PS> C:\minio.exe server F:\Data --console-address ":9001"`, arch),
+							Checksum: fmt.Sprintf("https://dl.min.io/enterprise/minio/release/windows-%s/minio.exe.sha256sum", arch),
+						},
+					}
+				}
+			} else {
+				d.Subscriptions[subscription].Kubernetes["MinIO Object Store"][arch] = downloadJSON{
+					Text: `kubectl apply -f dl.min.io/enterprise/console`,
+				}
+				d.Subscriptions[subscription].Linux["MinIO Cache"][arch] = downloadJSON{
+					Bin: &dlInfo{
+						Download: fmt.Sprintf("https://dl.min.io/enterprise/mincache/release/linux-%s/mincache", arch),
+						Text: fmt.Sprintf(`wget https://dl.min.io/enterprise/mincache/release/linux-%s/mincache
+chmod +x mincache
+./mincache serve --config config.yaml`, arch),
+						Checksum: fmt.Sprintf("https://dl.min.io/enterprise/mincache/release/linux-%s/mincache.sha256sum", arch),
+					},
+				}
+				d.Subscriptions[subscription].Linux["MinIO Firewall"][arch] = downloadJSON{
+					Bin: &dlInfo{
+						Download: fmt.Sprintf("https://dl.min.io/enterprise/minwall/release/linux-%s/minwall", arch),
+						Text: fmt.Sprintf(`wget https://dl.min.io/enterprise/minwall/release/linux-%s/minwall
+chmod +x minwall
+./minwall -c config.yaml`, arch),
+						Checksum: fmt.Sprintf("https://dl.min.io/enterprise/minwall/release/linux-%s/minwall.sha256sum", arch),
+					},
+				}
+				d.Subscriptions[subscription].Linux["MinIO KMS"][arch] = downloadJSON{
+					Bin: &dlInfo{
+						Download: fmt.Sprintf("https://dl.min.io/enterprise/mincache/release/linux-%s/minkms", arch),
+						Text: fmt.Sprintf(`wget https://dl.min.io/enterprise/mincache/release/linux-%s/minkms
+chmod +x minkms
+./minkms --help`, arch),
+						Checksum: fmt.Sprintf("https://dl.min.io/enterprise/mincache/release/linux-%s/minkms.sha256sum", arch),
+					},
+				}
+				d.Subscriptions[subscription].Linux["MinIO Catalog"][arch] = downloadJSON{
+					Bin: &dlInfo{
+						Download: fmt.Sprintf("https://dl.min.io/enterprise/mincache/release/linux-%s/mincat", arch),
+						Text: fmt.Sprintf(`wget https://dl.min.io/enterprise/mincache/release/linux-%s/mincat
+chmod +x mincat
+./mincat --help`, arch),
+						Checksum: fmt.Sprintf("https://dl.min.io/enterprise/mincache/release/linux-%s/mincat.sha256sum", arch),
+					},
+				}
+			}
+			d.Subscriptions[subscription].Linux["MinIO Object Store"][arch] = downloadJSON{
+				Bin: &dlInfo{
+					Download: fmt.Sprintf("https://dl.min.io/enterprise/minio/release/linux-%s/minio", arch),
+					Text: fmt.Sprintf(`wget https://dl.min.io/enterprise/minio/release/linux-%s/minio
+chmod +x minio
+MINIO_ROOT_USER=admin MINIO_ROOT_PASSWORD=password ./minio server /mnt/data --console-address ":9001"`, arch),
+					Checksum: fmt.Sprintf("https://dl.min.io/enterprise/minio/release/linux-%s/minio.sha256sum", arch),
+				},
+				RPM: &dlInfo{
+					Download: fmt.Sprintf("https://dl.min.io/enterprise/minio/release/linux-%s/minio-%s-1.%s.rpm", arch, semVerTag, rpmArchMap[arch]),
+					Checksum: fmt.Sprintf("https://dl.min.io/enterprise/minio/release/linux-%s/minio-%s-1.%s.rpm.sha256sum", arch, semVerTag, rpmArchMap[arch]),
+					Text: fmt.Sprintf(`dnf install https://dl.min.io/enterprise/minio/release/linux-%s/minio-%s-1.%s.rpm
+MINIO_ROOT_USER=admin MINIO_ROOT_PASSWORD=password minio server /mnt/data --console-address ":9001"`, arch, semVerTag, rpmArchMap[arch]),
+				},
+				Deb: &dlInfo{
+					Download: fmt.Sprintf("https://dl.min.io/enterprise/minio/release/linux-%s/minio_%s_%s.deb", arch, semVerTag, debArchMap[arch]),
+					Checksum: fmt.Sprintf("https://dl.min.io/enterprise/minio/release/linux-%s/minio_%s_%s.deb.sha256sum", arch, semVerTag, debArchMap[arch]),
+					Text: fmt.Sprintf(`wget https://dl.min.io/enterprise/minio/release/linux-%s/minio_%s_%s.deb
+dpkg -i minio_%s_%s.deb
+MINIO_ROOT_USER=admin MINIO_ROOT_PASSWORD=password minio server /mnt/data --console-address ":9001"`, arch, semVerTag, debArchMap[arch], semVerTag, debArchMap[arch]),
+				},
+			}
+		}
+	}
+	return d
+}
+
 func generateDownloadsJSON(semVerTag string, appName string) downloadsJSON {
 	d := downloadsJSON{
 		Linux:      make(map[string]map[string]downloadJSON),
@@ -127,12 +256,6 @@ func generateDownloadsJSON(semVerTag string, appName string) downloadsJSON {
 		Windows:    make(map[string]map[string]downloadJSON),
 		Docker:     make(map[string]map[string]downloadJSON),
 		Kubernetes: make(map[string]map[string]downloadJSON),
-	}
-
-	if appName == "minio-enterprise" {
-		d.Linux["MinIO Enterprise Object Store"] = map[string]downloadJSON{}
-		d.Windows["MinIO Enterprise Object Store"] = map[string]downloadJSON{}
-		d.Kubernetes["MinIO Enterprise Object Store"] = map[string]downloadJSON{}
 	}
 
 	if appName == "minio" {
@@ -157,41 +280,9 @@ func generateDownloadsJSON(semVerTag string, appName string) downloadsJSON {
 		"s390x",
 		"ppc64le",
 	} {
-		if appName == "minio-enterprise" {
-			d.Kubernetes["MinIO Enterprise Object Store"][linuxArch] = downloadJSON{
-				Text: fmt.Sprintf(`wget https://dl.min.io/enterprise/kubectl-minio/release/linux-%s/kubectl-minio
-chmod +x kubectl-minio
-./kubectl-minio init
-./kubectl-minio tenant create tenant1 --servers 4 --volumes 16 --capacity 16Ti`, linuxArch),
-			}
-			d.Linux["MinIO Enterprise Object Store"][linuxArch] = downloadJSON{
-				Bin: &dlInfo{
-					Download: fmt.Sprintf("https://dl.min.io/enterprise/minio/release/linux-%s/minio", linuxArch),
-					Text: fmt.Sprintf(`wget https://dl.min.io/enterprise/minio/release/linux-%s/minio
-chmod +x minio
-MINIO_ROOT_USER=admin MINIO_ROOT_PASSWORD=password ./minio server /mnt/data --console-address ":9001"`, linuxArch),
-					Checksum: fmt.Sprintf("https://dl.min.io/enterprise/minio/release/linux-%s/minio.sha256sum", linuxArch),
-				},
-				RPM: &dlInfo{
-					Download: fmt.Sprintf("https://dl.min.io/enterprise/minio/release/linux-%s/minio-%s-1.%s.rpm", linuxArch, semVerTag, rpmArchMap[linuxArch]),
-					Checksum: fmt.Sprintf("https://dl.min.io/enterprise/minio/release/linux-%s/minio-%s-1.%s.rpm.sha256sum", linuxArch, semVerTag, rpmArchMap[linuxArch]),
-					Text: fmt.Sprintf(`dnf install https://dl.min.io/enterprise/minio/release/linux-%s/minio-%s-1.%s.rpm
-MINIO_ROOT_USER=admin MINIO_ROOT_PASSWORD=password minio server /mnt/data --console-address ":9001"`, linuxArch, semVerTag, rpmArchMap[linuxArch]),
-				},
-				Deb: &dlInfo{
-					Download: fmt.Sprintf("https://dl.min.io/enterprise/minio/release/linux-%s/minio_%s_%s.deb", linuxArch, semVerTag, debArchMap[linuxArch]),
-					Checksum: fmt.Sprintf("https://dl.min.io/enterprise/minio/release/linux-%s/minio_%s_%s.deb.sha256sum", linuxArch, semVerTag, debArchMap[linuxArch]),
-					Text: fmt.Sprintf(`wget https://dl.min.io/enterprise/minio/release/linux-%s/minio_%s_%s.deb
-dpkg -i minio_%s_%s.deb
-MINIO_ROOT_USER=admin MINIO_ROOT_PASSWORD=password minio server /mnt/data --console-address ":9001"`, linuxArch, semVerTag, debArchMap[linuxArch], semVerTag, debArchMap[linuxArch]),
-				},
-			}
-		}
 		if appName == "minio" {
 			d.Kubernetes["MinIO Server"][linuxArch] = downloadJSON{
-				Text: `kubectl krew install minio
-kubectl minio init
-kubectl minio tenant create tenant1 --servers 4 --volumes 16 --capacity 16Ti`,
+				Text: `kubectl apply -k github.com/minio/operator`,
 			}
 			d.Docker["MinIO Server"][linuxArch] = downloadJSON{
 				Text: `podman run -p 9000:9000 -p 9001:9001 minio/minio server /data --console-address ":9001"`,
@@ -297,18 +388,6 @@ mc alias set myminio/ http://MINIO-SERVER MYUSER MYPASSWORD`, macArch),
 	for _, winArch := range []string{
 		"amd64",
 	} {
-		if appName == "minio-enterprise" {
-			d.Windows["MinIO Enterprise Object Store"][winArch] = downloadJSON{
-				Bin: &dlInfo{
-					Download: fmt.Sprintf("https://dl.min.io/enterprise/minio/release/windows-%s/minio.exe", winArch),
-					Text: fmt.Sprintf(`PS> Invoke-WebRequest -Uri "https://dl.min.io/enterprise/minio/release/windows-%s/minio.exe" -OutFile "C:\minio.exe"
-PS> setx MINIO_ROOT_USER admin
-PS> setx MINIO_ROOT_PASSWORD password
-cPS> C:\minio.exe server F:\Data --console-address ":9001"`, winArch),
-					Checksum: fmt.Sprintf("https://dl.min.io/enterprise/minio/release/windows-%s/minio.exe.sha256sum", winArch),
-				},
-			}
-		}
 		if appName == "minio" {
 			d.Windows["MinIO Server"][winArch] = downloadJSON{
 				Bin: &dlInfo{
@@ -399,13 +478,16 @@ func doPackage(appName, release, packager string) error {
 	}
 
 	semVerTag := semVerRelease(release)
-	d := generateDownloadsJSON(semVerTag, appName)
 	for _, arch := range []string{
 		"amd64",
 		"arm64",
 		"s390x",
 		"ppc64le",
 	} {
+		if appName == "minio-enterprise" && arch != "amd64" && arch != "arm64" {
+			continue
+		}
+
 		var buf bytes.Buffer
 		err = mtmpl.Execute(&buf, releaseTmpl{
 			App: func() string {
@@ -425,7 +507,7 @@ func doPackage(appName, release, packager string) error {
 			}(),
 			Description: func() string {
 				if appName == "minio-enterprise" {
-					return `MinIO Enterprise Object Store is Enterprise hardened version of MinIO. 
+					return `MinIO is a High Performance Object Store.
   It is API compatible with Amazon S3 cloud storage service. Use MinIO to build
   high performance infrastructure for machine learning, analytics and application
   data workloads.`
@@ -519,22 +601,31 @@ func doPackage(appName, release, packager string) error {
 
 			tgtShasum := sh.Sum(nil)
 			tgtPathShasum := tgtPath + ".sha256sum"
-			if err = os.WriteFile(tgtPathShasum, []byte(fmt.Sprintf("%s  %s", hex.EncodeToString(tgtShasum), releasePkg)), 0644); err != nil {
+			if err = os.WriteFile(tgtPathShasum, []byte(fmt.Sprintf("%s  %s", hex.EncodeToString(tgtShasum), releasePkg)), 0o644); err != nil {
 				os.Remove(tgtPath)
 				return err
 			}
 			fmt.Printf("created package: %s\n", tgtPath)
 		}
 	}
-	var json = jsoniter.ConfigCompatibleWithStandardLibrary
+
+	var d any
+	json := jsoniter.ConfigCompatibleWithStandardLibrary
+	if appName == "minio-enterprise" {
+		d = generateEnterpriseDownloadsJSON(semVerTag)
+	} else {
+		d = generateDownloadsJSON(semVerTag, appName)
+	}
+
 	buf, err := json.Marshal(&d)
 	if err != nil {
 		return err
 	}
+
 	return os.WriteFile(filepath.Join(func() string {
 		if appName == "minio-enterprise" {
 			return "minio"
 		}
 		return appName
-	}()+"-release", "downloads-"+appName+".json"), buf, 0644)
+	}()+"-release", "downloads-"+appName+".json"), buf, 0o644)
 }
