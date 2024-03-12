@@ -82,6 +82,10 @@ contents:
 - src: minio.service
   dst: /lib/systemd/system/minio.service
 {{end}}
+{{if eq .Binary "mineos" }}
+- src: minio.service
+  dst: /lib/systemd/system/minio.service
+{{end}}
 `
 
 type dlInfo struct {
@@ -501,7 +505,7 @@ func doPackage(appName, release, packager string) error {
 			}(),
 			Binary: func() string {
 				if appName == "minio-enterprise" {
-					return "minio"
+					return "mineos"
 				}
 				return appName
 			}(),
