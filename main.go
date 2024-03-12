@@ -209,20 +209,20 @@ chmod +x minwall
 				}
 				d.Subscriptions[subscription].Linux["MinIO KMS"][arch] = downloadJSON{
 					Bin: &dlInfo{
-						Download: fmt.Sprintf("https://dl.min.io/enterprise/mincache/release/linux-%s/minkms", arch),
-						Text: fmt.Sprintf(`wget https://dl.min.io/enterprise/mincache/release/linux-%s/minkms
+						Download: fmt.Sprintf("https://dl.min.io/enterprise/minkms/release/linux-%s/minkms", arch),
+						Text: fmt.Sprintf(`wget https://dl.min.io/enterprise/minkms/release/linux-%s/minkms
 chmod +x minkms
 ./minkms --help`, arch),
-						Checksum: fmt.Sprintf("https://dl.min.io/enterprise/mincache/release/linux-%s/minkms.sha256sum", arch),
+						Checksum: fmt.Sprintf("https://dl.min.io/enterprise/minkms/release/linux-%s/minkms.sha256sum", arch),
 					},
 				}
 				d.Subscriptions[subscription].Linux["MinIO Catalog"][arch] = downloadJSON{
 					Bin: &dlInfo{
-						Download: fmt.Sprintf("https://dl.min.io/enterprise/mincache/release/linux-%s/mincat", arch),
-						Text: fmt.Sprintf(`wget https://dl.min.io/enterprise/mincache/release/linux-%s/mincat
+						Download: fmt.Sprintf("https://dl.min.io/enterprise/mincat/release/linux-%s/mincat", arch),
+						Text: fmt.Sprintf(`wget https://dl.min.io/enterprise/mincat/release/linux-%s/mincat
 chmod +x mincat
 ./mincat --help`, arch),
-						Checksum: fmt.Sprintf("https://dl.min.io/enterprise/mincache/release/linux-%s/mincat.sha256sum", arch),
+						Checksum: fmt.Sprintf("https://dl.min.io/enterprise/mincat/release/linux-%s/mincat.sha256sum", arch),
 					},
 				}
 			}
