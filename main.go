@@ -171,7 +171,9 @@ func generateEnterpriseDownloadsJSON(semVerTag string) enterpriseDownloadsJSON {
 		} {
 			if subscription == "Standard" || subscription == "Enterprise" {
 				d.Subscriptions[subscription].Kubernetes["MinIO Object Store"][arch] = downloadJSON{
-					Text: `kubectl apply -f dl.min.io/enterprise/operator`,
+					Text: `wget https://dl.min.io/enterprise/operator.tar.gz
+tar xvf operator.tar.gz
+kubectl apply -k operator`,
 				}
 				if arch == "amd64" {
 					d.Subscriptions[subscription].Windows["MinIO Object Store"][arch] = downloadJSON{
@@ -187,7 +189,9 @@ PS> C:\minio.exe server F:\Data --console-address ":9001"`, arch),
 				}
 			} else {
 				d.Subscriptions[subscription].Kubernetes["MinIO Object Store"][arch] = downloadJSON{
-					Text: `kubectl apply -f dl.min.io/enterprise/console`,
+					Text: `wget https://dl.min.io/enterprise/console.tar.gz
+tar xvf console.tar.gz
+kubectl apply -k console`,
 				}
 				d.Subscriptions[subscription].Linux["MinIO Cache"][arch] = downloadJSON{
 					Bin: &dlInfo{
