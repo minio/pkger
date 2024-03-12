@@ -558,7 +558,7 @@ func doPackage(appName, release, packager string) error {
 			releasePkg := pkg.ConventionalFileName(info)
 			tgtPath := filepath.Join(func() string {
 				if appName == "minio-enterprise" {
-					return "minio"
+					return "mineos"
 				}
 				return appName
 			}()+"-release", "linux-"+arch, releasePkg)
@@ -576,13 +576,13 @@ func doPackage(appName, release, packager string) error {
 				_ = os.Chdir(filepath.Dir(tgtPath))
 				_ = os.Remove(func() string {
 					if appName == "minio-enterprise" {
-						return "minio"
+						return "mineos"
 					}
 					return appName
 				}() + filepath.Ext(tgtPath))
 				_ = os.Symlink(releasePkg, func() string {
 					if appName == "minio-enterprise" {
-						return "minio"
+						return "mineos"
 					}
 					return appName
 				}()+filepath.Ext(tgtPath))
@@ -624,7 +624,7 @@ func doPackage(appName, release, packager string) error {
 
 	return os.WriteFile(filepath.Join(func() string {
 		if appName == "minio-enterprise" {
-			return "minio"
+			return "mineos"
 		}
 		return appName
 	}()+"-release", "downloads-"+appName+".json"), buf, 0o644)
