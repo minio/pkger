@@ -76,7 +76,7 @@ license: "AGPLv3"
 rpm:
   group: Applications/File
 contents:
-- src: {{ .Binary }}-release/{{ .OS }}-{{ .Arch }}/{{ .Binary }}.{{ .Release }}
+- src: {{ .Binary }}-release/{{ .OS }}-{{ .Arch }}/{{ .App }}.{{ .Release }}
   dst: /usr/local/bin/{{ .App }}
 {{if eq .Binary "minio" }}
 - src: minio.service
