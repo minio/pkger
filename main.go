@@ -76,7 +76,7 @@ license: "AGPLv3"
 rpm:
   group: Applications/File
 contents:
-- src: {{ .Binary }}-release/{{ .OS }}-{{ .Arch }}/{{ .App }}.{{ .Release }}
+- src: {{ .ReleaseDir }}-release/{{ .OS }}-{{ .Arch }}/{{ .Binary }}.{{ .Release }}
   dst: /usr/local/bin/{{ .App }}
 {{if eq .Binary "minio" }}
 - src: minio.service
@@ -154,14 +154,16 @@ func generateEnterpriseDownloadsJSON(semVerTag string) enterpriseDownloadsJSON {
 	}
 	for subscription := range d.Subscriptions {
 		d.Subscriptions[subscription].Linux["MinIO Object Store"] = map[string]downloadJSON{}
+		d.Subscriptions[subscription].Windows["MinIO Object Store"] = map[string]downloadJSON{}
 		if subscription == "Enterprise-Lite" || subscription == "Enterprise-Plus" {
 			d.Subscriptions[subscription].Linux["MinIO KMS"] = map[string]downloadJSON{}
 			d.Subscriptions[subscription].Linux["MinIO Catalog"] = map[string]downloadJSON{}
 			d.Subscriptions[subscription].Linux["MinIO Firewall"] = map[string]downloadJSON{}
 			d.Subscriptions[subscription].Linux["MinIO Cache"] = map[string]downloadJSON{}
+			d.Subscriptions[subscription].Kubernetes["MinIO Enterprise Object Store"] = map[string]downloadJSON{}
+		} else {
+			d.Subscriptions[subscription].Kubernetes["MinIO Object Store"] = map[string]downloadJSON{}
 		}
-		d.Subscriptions[subscription].Windows["MinIO Object Store"] = map[string]downloadJSON{}
-		d.Subscriptions[subscription].Kubernetes["MinIO Object Store"] = map[string]downloadJSON{}
 	}
 
 	for subscription := range d.Subscriptions {
@@ -169,26 +171,26 @@ func generateEnterpriseDownloadsJSON(semVerTag string) enterpriseDownloadsJSON {
 			"amd64",
 			"arm64",
 		} {
+			if arch == "amd64" {
+				d.Subscriptions[subscription].Windows["MinIO Object Store"][arch] = downloadJSON{
+					Bin: &dlInfo{
+						Download: fmt.Sprintf("https://dl.min.io/enterprise/minio/release/windows-%s/minio.exe", arch),
+						Text: fmt.Sprintf(`PS> Invoke-WebRequest -Uri "https://dl.min.io/enterprise/minio/release/windows-%s/minio.exe" -OutFile "C:\minio.exe"
+PS> setx MINIO_ROOT_USER admin
+PS> setx MINIO_ROOT_PASSWORD password
+PS> C:\minio.exe server F:\Data --console-address ":9001"`, arch),
+						Checksum: fmt.Sprintf("https://dl.min.io/enterprise/minio/release/windows-%s/minio.exe.sha256sum", arch),
+					},
+				}
+			}
 			if subscription == "Standard" || subscription == "Enterprise" {
 				d.Subscriptions[subscription].Kubernetes["MinIO Object Store"][arch] = downloadJSON{
 					Text: `wget https://dl.min.io/enterprise/operator.tar.gz
 tar xvf operator.tar.gz
 kubectl apply -k operator`,
 				}
-				if arch == "amd64" {
-					d.Subscriptions[subscription].Windows["MinIO Object Store"][arch] = downloadJSON{
-						Bin: &dlInfo{
-							Download: fmt.Sprintf("https://dl.min.io/enterprise/minio/release/windows-%s/minio.exe", arch),
-							Text: fmt.Sprintf(`PS> Invoke-WebRequest -Uri "https://dl.min.io/enterprise/minio/release/windows-%s/minio.exe" -OutFile "C:\minio.exe"
-PS> setx MINIO_ROOT_USER admin
-PS> setx MINIO_ROOT_PASSWORD password
-PS> C:\minio.exe server F:\Data --console-address ":9001"`, arch),
-							Checksum: fmt.Sprintf("https://dl.min.io/enterprise/minio/release/windows-%s/minio.exe.sha256sum", arch),
-						},
-					}
-				}
 			} else {
-				d.Subscriptions[subscription].Kubernetes["MinIO Object Store"][arch] = downloadJSON{
+				d.Subscriptions[subscription].Kubernetes["MinIO Enterprise Object Store"][arch] = downloadJSON{
 					Text: `wget https://dl.min.io/enterprise/console.tar.gz
 tar xvf console.tar.gz
 kubectl apply -k console`,
@@ -437,6 +439,7 @@ func main() {
 
 type releaseTmpl struct {
 	App           string
+	ReleaseDir    string
 	Binary        string
 	Description   string
 	OS            string
@@ -507,9 +510,15 @@ func doPackage(appName, release, packager string) error {
 				}
 				return appName
 			}(),
-			Binary: func() string {
+			ReleaseDir: func() string {
 				if appName == "minio-enterprise" {
 					return "mineos"
+				}
+				return appName
+			}(),
+			Binary: func() string {
+				if appName == "minio-enterprise" {
+					return "minio"
 				}
 				return appName
 			}(),
