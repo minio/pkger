@@ -3,3 +3,5 @@ minio-release/
 dist/
 pkger
 mc-release/
+mineos-release/
+minio.service
