@@ -132,16 +132,6 @@ func generateEnterpriseDownloadsJSON(semVerTag string) enterpriseDownloadsJSON {
 	d := enterpriseDownloadsJSON{
 		Subscriptions: map[string]downloadsJSON{},
 	}
-	d.Subscriptions["Standard"] = downloadsJSON{
-		Kubernetes: make(map[string]map[string]downloadJSON),
-		Linux:      make(map[string]map[string]downloadJSON),
-		Windows:    make(map[string]map[string]downloadJSON),
-	}
-	d.Subscriptions["Enterprise"] = downloadsJSON{
-		Kubernetes: make(map[string]map[string]downloadJSON),
-		Linux:      make(map[string]map[string]downloadJSON),
-		Windows:    make(map[string]map[string]downloadJSON),
-	}
 	d.Subscriptions["Enterprise-Lite"] = downloadsJSON{
 		Kubernetes: make(map[string]map[string]downloadJSON),
 		Linux:      make(map[string]map[string]downloadJSON),
@@ -155,15 +145,11 @@ func generateEnterpriseDownloadsJSON(semVerTag string) enterpriseDownloadsJSON {
 	for subscription := range d.Subscriptions {
 		d.Subscriptions[subscription].Linux["MinIO Object Store"] = map[string]downloadJSON{}
 		d.Subscriptions[subscription].Windows["MinIO Object Store"] = map[string]downloadJSON{}
-		if subscription == "Enterprise-Lite" || subscription == "Enterprise-Plus" {
-			d.Subscriptions[subscription].Linux["MinIO KMS"] = map[string]downloadJSON{}
-			d.Subscriptions[subscription].Linux["MinIO Catalog"] = map[string]downloadJSON{}
-			d.Subscriptions[subscription].Linux["MinIO Firewall"] = map[string]downloadJSON{}
-			d.Subscriptions[subscription].Linux["MinIO Cache"] = map[string]downloadJSON{}
-			d.Subscriptions[subscription].Kubernetes["MinIO Enterprise Object Store"] = map[string]downloadJSON{}
-		} else {
-			d.Subscriptions[subscription].Kubernetes["MinIO Object Store"] = map[string]downloadJSON{}
-		}
+		d.Subscriptions[subscription].Linux["MinIO KMS"] = map[string]downloadJSON{}
+		d.Subscriptions[subscription].Linux["MinIO Catalog"] = map[string]downloadJSON{}
+		d.Subscriptions[subscription].Linux["MinIO Firewall"] = map[string]downloadJSON{}
+		d.Subscriptions[subscription].Linux["MinIO Cache"] = map[string]downloadJSON{}
+		d.Subscriptions[subscription].Kubernetes["MinIO Enterprise Object Store"] = map[string]downloadJSON{}
 	}
 
 	for subscription := range d.Subscriptions {
@@ -183,55 +169,49 @@ PS> C:\minio.exe server F:\Data --console-address ":9001"`, arch),
 					},
 				}
 			}
-			if subscription == "Standard" || subscription == "Enterprise" {
-				d.Subscriptions[subscription].Kubernetes["MinIO Object Store"][arch] = downloadJSON{
-					Text: `wget https://dl.min.io/enterprise/operator.tar.gz
-tar xvf operator.tar.gz
-kubectl apply -k operator`,
-				}
-			} else {
-				d.Subscriptions[subscription].Kubernetes["MinIO Enterprise Object Store"][arch] = downloadJSON{
-					Text: `wget https://dl.min.io/enterprise/console.tar.gz
+
+			d.Subscriptions[subscription].Kubernetes["MinIO Enterprise Object Store"][arch] = downloadJSON{
+				Text: `wget https://dl.min.io/enterprise/console.tar.gz
 tar xvf console.tar.gz
 kubectl apply -k console`,
-				}
-				d.Subscriptions[subscription].Linux["MinIO Cache"][arch] = downloadJSON{
-					Bin: &dlInfo{
-						Download: fmt.Sprintf("https://dl.min.io/enterprise/mincache/release/linux-%s/mincache", arch),
-						Text: fmt.Sprintf(`wget https://dl.min.io/enterprise/mincache/release/linux-%s/mincache
+			}
+			d.Subscriptions[subscription].Linux["MinIO Cache"][arch] = downloadJSON{
+				Bin: &dlInfo{
+					Download: fmt.Sprintf("https://dl.min.io/enterprise/mincache/release/linux-%s/mincache", arch),
+					Text: fmt.Sprintf(`wget https://dl.min.io/enterprise/mincache/release/linux-%s/mincache
 chmod +x mincache
 ./mincache serve --config config.yaml`, arch),
-						Checksum: fmt.Sprintf("https://dl.min.io/enterprise/mincache/release/linux-%s/mincache.sha256sum", arch),
-					},
-				}
-				d.Subscriptions[subscription].Linux["MinIO Firewall"][arch] = downloadJSON{
-					Bin: &dlInfo{
-						Download: fmt.Sprintf("https://dl.min.io/enterprise/minwall/release/linux-%s/minwall", arch),
-						Text: fmt.Sprintf(`wget https://dl.min.io/enterprise/minwall/release/linux-%s/minwall
+					Checksum: fmt.Sprintf("https://dl.min.io/enterprise/mincache/release/linux-%s/mincache.sha256sum", arch),
+				},
+			}
+			d.Subscriptions[subscription].Linux["MinIO Firewall"][arch] = downloadJSON{
+				Bin: &dlInfo{
+					Download: fmt.Sprintf("https://dl.min.io/enterprise/minwall/release/linux-%s/minwall", arch),
+					Text: fmt.Sprintf(`wget https://dl.min.io/enterprise/minwall/release/linux-%s/minwall
 chmod +x minwall
 ./minwall -c config.yaml`, arch),
-						Checksum: fmt.Sprintf("https://dl.min.io/enterprise/minwall/release/linux-%s/minwall.sha256sum", arch),
-					},
-				}
-				d.Subscriptions[subscription].Linux["MinIO KMS"][arch] = downloadJSON{
-					Bin: &dlInfo{
-						Download: fmt.Sprintf("https://dl.min.io/enterprise/minkms/release/linux-%s/minkms", arch),
-						Text: fmt.Sprintf(`wget https://dl.min.io/enterprise/minkms/release/linux-%s/minkms
+					Checksum: fmt.Sprintf("https://dl.min.io/enterprise/minwall/release/linux-%s/minwall.sha256sum", arch),
+				},
+			}
+			d.Subscriptions[subscription].Linux["MinIO KMS"][arch] = downloadJSON{
+				Bin: &dlInfo{
+					Download: fmt.Sprintf("https://dl.min.io/enterprise/minkms/release/linux-%s/minkms", arch),
+					Text: fmt.Sprintf(`wget https://dl.min.io/enterprise/minkms/release/linux-%s/minkms
 chmod +x minkms
 ./minkms --help`, arch),
-						Checksum: fmt.Sprintf("https://dl.min.io/enterprise/minkms/release/linux-%s/minkms.sha256sum", arch),
-					},
-				}
-				d.Subscriptions[subscription].Linux["MinIO Catalog"][arch] = downloadJSON{
-					Bin: &dlInfo{
-						Download: fmt.Sprintf("https://dl.min.io/enterprise/mincat/release/linux-%s/mincat", arch),
-						Text: fmt.Sprintf(`wget https://dl.min.io/enterprise/mincat/release/linux-%s/mincat
+					Checksum: fmt.Sprintf("https://dl.min.io/enterprise/minkms/release/linux-%s/minkms.sha256sum", arch),
+				},
+			}
+			d.Subscriptions[subscription].Linux["MinIO Catalog"][arch] = downloadJSON{
+				Bin: &dlInfo{
+					Download: fmt.Sprintf("https://dl.min.io/enterprise/mincat/release/linux-%s/mincat", arch),
+					Text: fmt.Sprintf(`wget https://dl.min.io/enterprise/mincat/release/linux-%s/mincat
 chmod +x mincat
 ./mincat --help`, arch),
-						Checksum: fmt.Sprintf("https://dl.min.io/enterprise/mincat/release/linux-%s/mincat.sha256sum", arch),
-					},
-				}
+					Checksum: fmt.Sprintf("https://dl.min.io/enterprise/mincat/release/linux-%s/mincat.sha256sum", arch),
+				},
 			}
+
 			d.Subscriptions[subscription].Linux["MinIO Object Store"][arch] = downloadJSON{
 				Bin: &dlInfo{
 					Download: fmt.Sprintf("https://dl.min.io/enterprise/minio/release/linux-%s/minio", arch),
