@@ -117,13 +117,11 @@ type downloadsJSON struct {
 var rpmArchMap = map[string]string{
 	"amd64":   "x86_64",
 	"ppc64le": "ppc64le",
-	"s390x":   "s390x",
 	"arm64":   "aarch64",
 }
 
 var debArchMap = map[string]string{
 	"amd64":   "amd64",
-	"s390x":   "s390x",
 	"arm64":   "arm64",
 	"ppc64le": "ppc64el",
 }
@@ -267,7 +265,6 @@ func generateDownloadsJSON(semVerTag string, appName string) downloadsJSON {
 	for _, linuxArch := range []string{
 		"amd64",
 		"arm64",
-		"s390x",
 		"ppc64le",
 	} {
 		if appName == "minio" {
@@ -472,7 +469,6 @@ func doPackage(appName, release, packager string) error {
 	for _, arch := range []string{
 		"amd64",
 		"arm64",
-		"s390x",
 		"ppc64le",
 	} {
 		if appName == "minio-enterprise" && arch != "amd64" && arch != "arm64" {
