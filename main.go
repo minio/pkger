@@ -115,15 +115,13 @@ type downloadsJSON struct {
 }
 
 var rpmArchMap = map[string]string{
-	"amd64":   "x86_64",
-	"ppc64le": "ppc64le",
-	"arm64":   "aarch64",
+	"amd64": "x86_64",
+	"arm64": "aarch64",
 }
 
 var debArchMap = map[string]string{
-	"amd64":   "amd64",
-	"arm64":   "arm64",
-	"ppc64le": "ppc64el",
+	"amd64": "amd64",
+	"arm64": "arm64",
 }
 
 func generateEnterpriseDownloadsJSON(semVerTag string) enterpriseDownloadsJSON {
@@ -146,7 +144,6 @@ func generateEnterpriseDownloadsJSON(semVerTag string) enterpriseDownloadsJSON {
 		d.Subscriptions[subscription].Linux["MinIO KMS"] = map[string]downloadJSON{}
 		d.Subscriptions[subscription].Linux["MinIO Catalog"] = map[string]downloadJSON{}
 		d.Subscriptions[subscription].Linux["MinIO Firewall"] = map[string]downloadJSON{}
-		d.Subscriptions[subscription].Linux["MinIO Cache"] = map[string]downloadJSON{}
 		d.Subscriptions[subscription].Kubernetes["MinIO Enterprise Object Store"] = map[string]downloadJSON{}
 	}
 
@@ -172,15 +169,6 @@ PS> C:\minio.exe server F:\Data --console-address ":9001"`, arch),
 				Text: `wget https://dl.min.io/enterprise/console.tar.gz
 tar xvf console.tar.gz
 kubectl apply -k console`,
-			}
-			d.Subscriptions[subscription].Linux["MinIO Cache"][arch] = downloadJSON{
-				Bin: &dlInfo{
-					Download: fmt.Sprintf("https://dl.min.io/enterprise/mincache/release/linux-%s/mincache", arch),
-					Text: fmt.Sprintf(`wget https://dl.min.io/enterprise/mincache/release/linux-%s/mincache
-chmod +x mincache
-./mincache serve --config config.yaml`, arch),
-					Checksum: fmt.Sprintf("https://dl.min.io/enterprise/mincache/release/linux-%s/mincache.sha256sum", arch),
-				},
 			}
 			d.Subscriptions[subscription].Linux["MinIO Firewall"][arch] = downloadJSON{
 				Bin: &dlInfo{
