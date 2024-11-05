@@ -170,7 +170,7 @@ PS> C:\minio.exe server F:\Data --console-address ":9001"`, arch),
 tar xvf console.tar.gz
 kubectl apply -k console`,
 			}
-			d.Subscriptions[subscription].Linux["MinIO Firewall"][arch] = downloadJSON{
+			d.Subscriptions[subscription].Linux["Firewall"][arch] = downloadJSON{
 				Bin: &dlInfo{
 					Download: fmt.Sprintf("https://dl.min.io/enterprise/minwall/release/linux-%s/minwall", arch),
 					Text: fmt.Sprintf(`wget https://dl.min.io/enterprise/minwall/release/linux-%s/minwall
@@ -179,7 +179,7 @@ chmod +x minwall
 					Checksum: fmt.Sprintf("https://dl.min.io/enterprise/minwall/release/linux-%s/minwall.sha256sum", arch),
 				},
 			}
-			d.Subscriptions[subscription].Linux["MinIO KMS"][arch] = downloadJSON{
+			d.Subscriptions[subscription].Linux["Key Manager"][arch] = downloadJSON{
 				Bin: &dlInfo{
 					Download: fmt.Sprintf("https://dl.min.io/enterprise/minkms/release/linux-%s/minkms", arch),
 					Text: fmt.Sprintf(`wget https://dl.min.io/enterprise/minkms/release/linux-%s/minkms
@@ -188,7 +188,7 @@ chmod +x minkms
 					Checksum: fmt.Sprintf("https://dl.min.io/enterprise/minkms/release/linux-%s/minkms.sha256sum", arch),
 				},
 			}
-			d.Subscriptions[subscription].Linux["MinIO Catalog"][arch] = downloadJSON{
+			d.Subscriptions[subscription].Linux["Catalog"][arch] = downloadJSON{
 				Bin: &dlInfo{
 					Download: fmt.Sprintf("https://dl.min.io/enterprise/mincat/release/linux-%s/mincat", arch),
 					Text: fmt.Sprintf(`wget https://dl.min.io/enterprise/mincat/release/linux-%s/mincat
