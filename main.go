@@ -82,7 +82,7 @@ contents:
 - src: minio.service
   dst: /lib/systemd/system/minio.service
 {{end}}
-{{if eq .Binary "mineos" }}
+{{if eq .Binary "aistor" }}
 - src: minio.service
   dst: /lib/systemd/system/minio.service
 {{end}}
@@ -397,9 +397,37 @@ func main() {
 		kingpin.Fatalf(err.Error())
 	}
 
-	if err := doPackage(*appName, *release, *packager); err != nil {
+	releasePath := func() string {
+		if *appName == "minio-enterprise" {
+			return "aistor"
+		}
+		return *appName
+	}() + "-release"
+	os.MkdirAll(releasePath, 0o755)
+
+	semVerTag := semVerRelease(*release)
+	if !*ignoreMissingArch {
+		if err := doPackage(*appName, *release, *packager); err != nil {
+			kingpin.Fatalf(err.Error())
+		}
+	}
+
+	var d any
+	json := jsoniter.ConfigCompatibleWithStandardLibrary
+	if *appName == "minio-enterprise" {
+		d = generateEnterpriseDownloadsJSON(semVerTag)
+	} else {
+		d = generateDownloadsJSON(semVerTag, *appName)
+	}
+
+	buf, err := json.Marshal(&d)
+	if err != nil {
 		kingpin.Fatalf(err.Error())
 	}
+
+	os.WriteFile(filepath.Join(releasePath, "downloads-"+*appName+".json"), buf, 0o644)
+
+	fmt.Println("Generated downloads metadata at", filepath.Join(releasePath, "downloads-"+*appName+".json"))
 }
 
 type releaseTmpl struct {
@@ -476,7 +504,7 @@ func doPackage(appName, release, packager string) error {
 			}(),
 			ReleaseDir: func() string {
 				if appName == "minio-enterprise" {
-					return "mineos"
+					return "aistor"
 				}
 				return appName
 			}(),
@@ -539,7 +567,7 @@ func doPackage(appName, release, packager string) error {
 			releasePkg := pkg.ConventionalFileName(info)
 			tgtPath := filepath.Join(func() string {
 				if appName == "minio-enterprise" {
-					return "mineos"
+					return "aistor"
 				}
 				return appName
 			}()+"-release", "linux-"+arch, releasePkg)
@@ -590,23 +618,5 @@ func doPackage(appName, release, packager string) error {
 		}
 	}
 
-	var d any
-	json := jsoniter.ConfigCompatibleWithStandardLibrary
-	if appName == "minio-enterprise" {
-		d = generateEnterpriseDownloadsJSON(semVerTag)
-	} else {
-		d = generateDownloadsJSON(semVerTag, appName)
-	}
-
-	buf, err := json.Marshal(&d)
-	if err != nil {
-		return err
-	}
-
-	return os.WriteFile(filepath.Join(func() string {
-		if appName == "minio-enterprise" {
-			return "mineos"
-		}
-		return appName
-	}()+"-release", "downloads-"+appName+".json"), buf, 0o644)
+	return nil
 }
