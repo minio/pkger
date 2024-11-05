@@ -141,9 +141,9 @@ func generateEnterpriseDownloadsJSON(semVerTag string) enterpriseDownloadsJSON {
 	for subscription := range d.Subscriptions {
 		d.Subscriptions[subscription].Linux["MinIO Object Store"] = map[string]downloadJSON{}
 		d.Subscriptions[subscription].Windows["MinIO Object Store"] = map[string]downloadJSON{}
-		d.Subscriptions[subscription].Linux["MinIO KMS"] = map[string]downloadJSON{}
-		d.Subscriptions[subscription].Linux["MinIO Catalog"] = map[string]downloadJSON{}
-		d.Subscriptions[subscription].Linux["MinIO Firewall"] = map[string]downloadJSON{}
+		d.Subscriptions[subscription].Linux["Key Manager"] = map[string]downloadJSON{}
+		d.Subscriptions[subscription].Linux["Catalog"] = map[string]downloadJSON{}
+		d.Subscriptions[subscription].Linux["Firewall"] = map[string]downloadJSON{}
 		d.Subscriptions[subscription].Kubernetes["MinIO Enterprise Object Store"] = map[string]downloadJSON{}
 	}
 
