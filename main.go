@@ -128,23 +128,16 @@ func generateEnterpriseDownloadsJSON(semVerTag string) enterpriseDownloadsJSON {
 	d := enterpriseDownloadsJSON{
 		Subscriptions: map[string]downloadsJSON{},
 	}
-	d.Subscriptions["Enterprise-Lite"] = downloadsJSON{
+	d.Subscriptions["Enterprise"] = downloadsJSON{
 		Kubernetes: make(map[string]map[string]downloadJSON),
 		Linux:      make(map[string]map[string]downloadJSON),
-		Windows:    make(map[string]map[string]downloadJSON),
-	}
-	d.Subscriptions["Enterprise-Plus"] = downloadsJSON{
-		Kubernetes: make(map[string]map[string]downloadJSON),
-		Linux:      make(map[string]map[string]downloadJSON),
-		Windows:    make(map[string]map[string]downloadJSON),
 	}
 	for subscription := range d.Subscriptions {
-		d.Subscriptions[subscription].Linux["MinIO Object Store"] = map[string]downloadJSON{}
-		d.Subscriptions[subscription].Windows["MinIO Object Store"] = map[string]downloadJSON{}
-		d.Subscriptions[subscription].Linux["MinIO KMS"] = map[string]downloadJSON{}
-		d.Subscriptions[subscription].Linux["MinIO Catalog"] = map[string]downloadJSON{}
-		d.Subscriptions[subscription].Linux["MinIO Firewall"] = map[string]downloadJSON{}
-		d.Subscriptions[subscription].Kubernetes["MinIO Enterprise Object Store"] = map[string]downloadJSON{}
+		d.Subscriptions[subscription].Linux["AIStor Object Store"] = map[string]downloadJSON{}
+		d.Subscriptions[subscription].Linux["AIStor Key Manager"] = map[string]downloadJSON{}
+		d.Subscriptions[subscription].Linux["AIStor Catalog"] = map[string]downloadJSON{}
+		d.Subscriptions[subscription].Linux["AIStor Load Balancer"] = map[string]downloadJSON{}
+		d.Subscriptions[subscription].Kubernetes["AIStor"] = map[string]downloadJSON{}
 	}
 
 	for subscription := range d.Subscriptions {
@@ -152,70 +145,57 @@ func generateEnterpriseDownloadsJSON(semVerTag string) enterpriseDownloadsJSON {
 			"amd64",
 			"arm64",
 		} {
-			if arch == "amd64" {
-				d.Subscriptions[subscription].Windows["MinIO Object Store"][arch] = downloadJSON{
-					Bin: &dlInfo{
-						Download: fmt.Sprintf("https://dl.min.io/enterprise/minio/release/windows-%s/minio.exe", arch),
-						Text: fmt.Sprintf(`PS> Invoke-WebRequest -Uri "https://dl.min.io/enterprise/minio/release/windows-%s/minio.exe" -OutFile "C:\minio.exe"
-PS> setx MINIO_ROOT_USER admin
-PS> setx MINIO_ROOT_PASSWORD password
-PS> C:\minio.exe server F:\Data --console-address ":9001"`, arch),
-						Checksum: fmt.Sprintf("https://dl.min.io/enterprise/minio/release/windows-%s/minio.exe.sha256sum", arch),
-					},
-				}
-			}
 
-			d.Subscriptions[subscription].Kubernetes["MinIO Enterprise Object Store"][arch] = downloadJSON{
-				Text: `wget https://dl.min.io/enterprise/console.tar.gz
-tar xvf console.tar.gz
-kubectl apply -k console`,
+			d.Subscriptions[subscription].Kubernetes["AIStor"][arch] = downloadJSON{
+				Text: `kubectl apply -k https://min.io/k8s/aistor
+kubectl port-forward svc/aistor -n aistor`,
 			}
-			d.Subscriptions[subscription].Linux["MinIO Firewall"][arch] = downloadJSON{
+			d.Subscriptions[subscription].Linux["AIStor Load Balancer"][arch] = downloadJSON{
 				Bin: &dlInfo{
-					Download: fmt.Sprintf("https://dl.min.io/enterprise/minwall/release/linux-%s/minwall", arch),
-					Text: fmt.Sprintf(`wget https://dl.min.io/enterprise/minwall/release/linux-%s/minwall
+					Download: fmt.Sprintf("https://dl.min.io/aistor/minwall/release/linux-%s/minwall", arch),
+					Text: fmt.Sprintf(`wget https://dl.min.io/aistor/minwall/release/linux-%s/minwall
 chmod +x minwall
 ./minwall -c config.yaml`, arch),
-					Checksum: fmt.Sprintf("https://dl.min.io/enterprise/minwall/release/linux-%s/minwall.sha256sum", arch),
+					Checksum: fmt.Sprintf("https://dl.min.io/aistor/minwall/release/linux-%s/minwall.sha256sum", arch),
 				},
 			}
-			d.Subscriptions[subscription].Linux["MinIO KMS"][arch] = downloadJSON{
+			d.Subscriptions[subscription].Linux["AIStor Key Manager"][arch] = downloadJSON{
 				Bin: &dlInfo{
-					Download: fmt.Sprintf("https://dl.min.io/enterprise/minkms/release/linux-%s/minkms", arch),
-					Text: fmt.Sprintf(`wget https://dl.min.io/enterprise/minkms/release/linux-%s/minkms
+					Download: fmt.Sprintf("https://dl.min.io/aistor/minkms/release/linux-%s/minkms", arch),
+					Text: fmt.Sprintf(`wget https://dl.min.io/aistor/minkms/release/linux-%s/minkms
 chmod +x minkms
 ./minkms --help`, arch),
-					Checksum: fmt.Sprintf("https://dl.min.io/enterprise/minkms/release/linux-%s/minkms.sha256sum", arch),
+					Checksum: fmt.Sprintf("https://dl.min.io/aistor/minkms/release/linux-%s/minkms.sha256sum", arch),
 				},
 			}
-			d.Subscriptions[subscription].Linux["MinIO Catalog"][arch] = downloadJSON{
+			d.Subscriptions[subscription].Linux["AIStor Catalog"][arch] = downloadJSON{
 				Bin: &dlInfo{
-					Download: fmt.Sprintf("https://dl.min.io/enterprise/mincat/release/linux-%s/mincat", arch),
-					Text: fmt.Sprintf(`wget https://dl.min.io/enterprise/mincat/release/linux-%s/mincat
+					Download: fmt.Sprintf("https://dl.min.io/aistor/mincat/release/linux-%s/mincat", arch),
+					Text: fmt.Sprintf(`wget https://dl.min.io/aistor/mincat/release/linux-%s/mincat
 chmod +x mincat
 ./mincat --help`, arch),
-					Checksum: fmt.Sprintf("https://dl.min.io/enterprise/mincat/release/linux-%s/mincat.sha256sum", arch),
+					Checksum: fmt.Sprintf("https://dl.min.io/aistor/mincat/release/linux-%s/mincat.sha256sum", arch),
 				},
 			}
 
-			d.Subscriptions[subscription].Linux["MinIO Object Store"][arch] = downloadJSON{
+			d.Subscriptions[subscription].Linux["AIStor Object Store"][arch] = downloadJSON{
 				Bin: &dlInfo{
-					Download: fmt.Sprintf("https://dl.min.io/enterprise/minio/release/linux-%s/minio", arch),
-					Text: fmt.Sprintf(`wget https://dl.min.io/enterprise/minio/release/linux-%s/minio
+					Download: fmt.Sprintf("https://dl.min.io/aistor/minio/release/linux-%s/minio", arch),
+					Text: fmt.Sprintf(`wget https://dl.min.io/aistor/minio/release/linux-%s/minio
 chmod +x minio
 MINIO_ROOT_USER=admin MINIO_ROOT_PASSWORD=password ./minio server /mnt/data --console-address ":9001"`, arch),
-					Checksum: fmt.Sprintf("https://dl.min.io/enterprise/minio/release/linux-%s/minio.sha256sum", arch),
+					Checksum: fmt.Sprintf("https://dl.min.io/aistor/minio/release/linux-%s/minio.sha256sum", arch),
 				},
 				RPM: &dlInfo{
-					Download: fmt.Sprintf("https://dl.min.io/enterprise/minio/release/linux-%s/minio-%s-1.%s.rpm", arch, semVerTag, rpmArchMap[arch]),
-					Checksum: fmt.Sprintf("https://dl.min.io/enterprise/minio/release/linux-%s/minio-%s-1.%s.rpm.sha256sum", arch, semVerTag, rpmArchMap[arch]),
-					Text: fmt.Sprintf(`dnf install https://dl.min.io/enterprise/minio/release/linux-%s/minio-%s-1.%s.rpm
+					Download: fmt.Sprintf("https://dl.min.io/aistor/minio/release/linux-%s/minio-%s-1.%s.rpm", arch, semVerTag, rpmArchMap[arch]),
+					Checksum: fmt.Sprintf("https://dl.min.io/aistor/minio/release/linux-%s/minio-%s-1.%s.rpm.sha256sum", arch, semVerTag, rpmArchMap[arch]),
+					Text: fmt.Sprintf(`dnf install https://dl.min.io/aistor/minio/release/linux-%s/minio-%s-1.%s.rpm
 MINIO_ROOT_USER=admin MINIO_ROOT_PASSWORD=password minio server /mnt/data --console-address ":9001"`, arch, semVerTag, rpmArchMap[arch]),
 				},
 				Deb: &dlInfo{
-					Download: fmt.Sprintf("https://dl.min.io/enterprise/minio/release/linux-%s/minio_%s_%s.deb", arch, semVerTag, debArchMap[arch]),
-					Checksum: fmt.Sprintf("https://dl.min.io/enterprise/minio/release/linux-%s/minio_%s_%s.deb.sha256sum", arch, semVerTag, debArchMap[arch]),
-					Text: fmt.Sprintf(`wget https://dl.min.io/enterprise/minio/release/linux-%s/minio_%s_%s.deb
+					Download: fmt.Sprintf("https://dl.min.io/aistor/minio/release/linux-%s/minio_%s_%s.deb", arch, semVerTag, debArchMap[arch]),
+					Checksum: fmt.Sprintf("https://dl.min.io/aistor/minio/release/linux-%s/minio_%s_%s.deb.sha256sum", arch, semVerTag, debArchMap[arch]),
+					Text: fmt.Sprintf(`wget https://dl.min.io/aistor/minio/release/linux-%s/minio_%s_%s.deb
 dpkg -i minio_%s_%s.deb
 MINIO_ROOT_USER=admin MINIO_ROOT_PASSWORD=password minio server /mnt/data --console-address ":9001"`, arch, semVerTag, debArchMap[arch], semVerTag, debArchMap[arch]),
 				},
