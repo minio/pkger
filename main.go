@@ -386,9 +386,11 @@ func main() {
 	os.MkdirAll(releasePath, 0o755)
 
 	semVerTag := semVerRelease(*release)
-	if !*ignoreMissingArch {
-		if err := doPackage(*appName, *release, *packager); err != nil {
+	if err := doPackage(*appName, *release, *packager); err != nil {
+		if !*ignoreMissingArch {
 			kingpin.Fatalf(err.Error())
+		} else {
+			kingpin.Errorf(err.Error())
 		}
 	}
 
