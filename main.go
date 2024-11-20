@@ -61,6 +61,8 @@ var (
 			Default("deb,rpm,apk").
 			Short('p').
 			Enum("deb", "rpm", "apk", "deb,rpm,apk")
+	releaseDir = app.Flag("releaseDir", "Release directory (that contains os-arch specific dirs) to pick up binaries to package, defaults to `appName+\"-release\"`").
+			Short('d').String()
 )
 
 const tmpl = `name: "{{ .App }}"
@@ -76,7 +78,7 @@ license: "AGPLv3"
 rpm:
   group: Applications/File
 contents:
-- src: {{ .ReleaseDir }}-release/{{ .OS }}-{{ .Arch }}/{{ .Binary }}.{{ .Release }}
+- src: {{ .ReleaseDir }}/{{ .OS }}-{{ .Arch }}/{{ .Binary }}.{{ .Release }}
   dst: /usr/local/bin/{{ .App }}
 {{if eq .Binary "minio" }}
 - src: minio.service
@@ -369,6 +371,17 @@ C:\mc.exe alias set myminio/ http://MINIO-SERVER MYUSER MYPASSWORD`, winArch),
 	return d
 }
 
+func releaseDirName() string {
+	if *releaseDir != "" {
+		return *releaseDir
+	}
+	name := *appName
+	if *appName == "minio-enterprise" {
+		name = "minio"
+	}
+	return name + "-release"
+}
+
 func main() {
 	app.Version(version)
 	app.VersionFlag.Short('v')
@@ -376,14 +389,6 @@ func main() {
 	if _, err := app.Parse(os.Args[1:]); err != nil {
 		kingpin.Fatalf(err.Error())
 	}
-
-	releasePath := func() string {
-		if *appName == "minio-enterprise" {
-			return "aistor"
-		}
-		return *appName
-	}() + "-release"
-	os.MkdirAll(releasePath, 0o755)
 
 	semVerTag := semVerRelease(*release)
 	if err := doPackage(*appName, *release, *packager); err != nil {
@@ -407,9 +412,9 @@ func main() {
 		kingpin.Fatalf(err.Error())
 	}
 
-	os.WriteFile(filepath.Join(releasePath, "downloads-"+*appName+".json"), buf, 0o644)
+	os.WriteFile(filepath.Join(releaseDirName(), "downloads-"+*appName+".json"), buf, 0o644)
 
-	fmt.Println("Generated downloads metadata at", filepath.Join(releasePath, "downloads-"+*appName+".json"))
+	fmt.Println("Generated downloads metadata at", filepath.Join(releaseDirName(), "downloads-"+*appName+".json"))
 }
 
 type releaseTmpl struct {
@@ -484,12 +489,7 @@ func doPackage(appName, release, packager string) error {
 				}
 				return appName
 			}(),
-			ReleaseDir: func() string {
-				if appName == "minio-enterprise" {
-					return "aistor"
-				}
-				return appName
-			}(),
+			ReleaseDir: releaseDirName(),
 			Binary: func() string {
 				if appName == "minio-enterprise" {
 					return "minio"
@@ -547,12 +547,7 @@ func doPackage(appName, release, packager string) error {
 			}
 
 			releasePkg := pkg.ConventionalFileName(info)
-			tgtPath := filepath.Join(func() string {
-				if appName == "minio-enterprise" {
-					return "aistor"
-				}
-				return appName
-			}()+"-release", "linux-"+arch, releasePkg)
+			tgtPath := filepath.Join(releaseDirName(), "linux-"+arch, releasePkg)
 			f, err := os.Create(tgtPath)
 			if err != nil {
 				return err
