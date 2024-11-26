@@ -148,7 +148,7 @@ func generateEnterpriseDownloadsJSON(semVerTag, appName string) enterpriseDownlo
 			"amd64",
 			"arm64",
 		} {
-			if appName == "mc" {
+			if appName == "mc-enterprise" {
 				d.Subscriptions[subscription].Linux["AIStor MinIO Client"][arch] = downloadJSON{
 					Bin: &dlInfo{
 						Download: fmt.Sprintf("https://dl.min.io/aistor/mc/release/linux-%s/mc", arch),
@@ -173,7 +173,7 @@ mcli alias set myminio/ http://MINIO-SERVER MYUSER MYPASSWORD`, arch, semVerTag,
 					},
 				}
 			}
-			if appName == "minio" {
+			if appName == "minio-enterprise" {
 				d.Subscriptions[subscription].Kubernetes["AIStor"][arch] = downloadJSON{
 					Text: `kubectl apply -k https://min.io/k8s/aistor
 kubectl port-forward svc/aistor -n aistor`,
@@ -508,6 +508,9 @@ func doPackage(appName, release, packager string) error {
 		if appName == "minio-enterprise" && arch != "amd64" && arch != "arm64" {
 			continue
 		}
+		if appName == "mc-enterprise" && arch != "amd64" && arch != "arm64" {
+			continue
+		}
 
 		var buf bytes.Buffer
 		err = mtmpl.Execute(&buf, releaseTmpl{
@@ -515,7 +518,7 @@ func doPackage(appName, release, packager string) error {
 				if appName == "minio-enterprise" {
 					return "minio"
 				}
-				if appName == "mc" {
+				if appName == "mc" || appName == "mc-enterprise" {
 					return "mcli"
 				}
 				return appName
@@ -524,6 +527,9 @@ func doPackage(appName, release, packager string) error {
 			Binary: func() string {
 				if appName == "minio-enterprise" {
 					return "minio"
+				}
+				if appName == "mc-enterprise" {
+					return "mc"
 				}
 				return appName
 			}(),
@@ -534,7 +540,7 @@ func doPackage(appName, release, packager string) error {
   high performance infrastructure for machine learning, analytics and application
   data workloads.`
 				}
-				if appName == "mc" {
+				if appName == "mc" || appName == "mc-enterprise" {
 					return `MinIO Client for cloud storage and filesystems`
 				}
 				return `MinIO is a High Performance Object Storage released under AGPLv3.
