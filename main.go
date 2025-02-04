@@ -154,20 +154,20 @@ func generateEnterpriseDownloadsJSON(semVerTag, appName string) enterpriseDownlo
 						Download: fmt.Sprintf("https://dl.min.io/aistor/mc/release/linux-%s/mc", arch),
 						Text: fmt.Sprintf(`wget https://dl.min.io/aistor/mc/release/linux-%s/mc
 chmod +x mc
-mc alias set myminio/ http://MINIO-SERVER MYUSER MYPASSWORD`, arch),
+mcli alias set myminio/ http://MINIO-SERVER MYUSER MYPASSWORD`, arch),
 
 						Checksum: fmt.Sprintf("https://dl.min.io/aistor/mc/release/linux-%s/mc.sha256sum", arch),
 					},
 					RPM: &dlInfo{
-						Download: fmt.Sprintf("https://dl.min.io/aistor/mc/release/linux-%s/mc-%s-1.%s.rpm", arch, semVerTag, rpmArchMap[arch]),
+						Download: fmt.Sprintf("https://dl.min.io/aistor/mc/release/linux-%s/mcli-%s-1.%s.rpm", arch, semVerTag, rpmArchMap[arch]),
 						Checksum: fmt.Sprintf("https://dl.min.io/aistor/mc/release/linux-%s/mc-%s-1.%s.rpm.sha256sum", arch, semVerTag, rpmArchMap[arch]),
-						Text: fmt.Sprintf(`dnf install https://dl.min.io/aistor/mc/release/linux-%s/mc-%s-1.%s.rpm
-mc alias set myminio/ http://MINIO-SERVER MYUSER MYPASSWORD`, arch, semVerTag, rpmArchMap[arch]),
+						Text: fmt.Sprintf(`dnf install https://dl.min.io/aistor/mc/release/linux-%s/mcli-%s-1.%s.rpm
+mcli alias set myminio/ http://MINIO-SERVER MYUSER MYPASSWORD`, arch, semVerTag, rpmArchMap[arch]),
 					},
 					Deb: &dlInfo{
-						Download: fmt.Sprintf("https://dl.min.io/aistor/mc/release/linux-%s/mc_%s_%s.deb", arch, semVerTag, debArchMap[arch]),
+						Download: fmt.Sprintf("https://dl.min.io/aistor/mc/release/linux-%s/mcli_%s_%s.deb", arch, semVerTag, debArchMap[arch]),
 						Checksum: fmt.Sprintf("https://dl.min.io/aistor/mc/release/linux-%s/mc_%s_%s.deb.sha256sum", arch, semVerTag, debArchMap[arch]),
-						Text: fmt.Sprintf(`wget https://dl.min.io/aistor/mc/release/linux-%s/mc_%s_%s.deb
+						Text: fmt.Sprintf(`wget https://dl.min.io/aistor/mc/release/linux-%s/mcli_%s_%s.deb
 dpkg -i mc_%s_%s.deb
 mcli alias set myminio/ http://MINIO-SERVER MYUSER MYPASSWORD`, arch, semVerTag, debArchMap[arch], semVerTag, debArchMap[arch]),
 					},
