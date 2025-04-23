@@ -376,10 +376,10 @@ mc alias set myminio/ http://MINIO-SERVER MYUSER MYPASSWORD`, macArch),
 			d.Windows["MinIO Server"][winArch] = downloadJSON{
 				Bin: &dlInfo{
 					Download: fmt.Sprintf("https://dl.min.io/server/minio/release/windows-%s/minio.exe", winArch),
-					Text: fmt.Sprintf(`PS> Invoke-WebRequest -Uri "https://dl.min.io/server/minio/release/windows-%s/minio.exe" -OutFile "C:\minio.exe"
-PS> setx MINIO_ROOT_USER admin
-PS> setx MINIO_ROOT_PASSWORD password
-PS> C:\minio.exe server F:\Data --console-address ":9001"`, winArch),
+					Text: fmt.Sprintf(`Invoke-WebRequest -Uri "https://dl.min.io/server/minio/release/windows-%s/minio.exe" -OutFile "minio.exe"
+setx MINIO_ROOT_USER admin
+setx MINIO_ROOT_PASSWORD password
+minio.exe server F:\Data --console-address ":9001"`, winArch),
 					Checksum: fmt.Sprintf("https://dl.min.io/server/minio/release/windows-%s/minio.exe.sha256sum", winArch),
 				},
 			}
@@ -388,8 +388,8 @@ PS> C:\minio.exe server F:\Data --console-address ":9001"`, winArch),
 			d.Windows["MinIO Client"][winArch] = downloadJSON{
 				Bin: &dlInfo{
 					Download: fmt.Sprintf("https://dl.min.io/client/mc/release/windows-%s/mc.exe", winArch),
-					Text: fmt.Sprintf(`PS> Invoke-WebRequest -Uri "https://dl.minio.io/client/mc/release/windows-%s/mc.exe" -OutFile "C:\mc.exe"
-C:\mc.exe alias set myminio/ http://MINIO-SERVER MYUSER MYPASSWORD`, winArch),
+					Text: fmt.Sprintf(`Invoke-WebRequest -Uri "https://dl.minio.io/client/mc/release/windows-%s/mc.exe" -OutFile "mc.exe"
+mc.exe alias set myminio/ http://MINIO-SERVER MYUSER MYPASSWORD`, winArch),
 					Checksum: fmt.Sprintf("https://dl.min.io/client/mc/release/windows-%s/mc.exe.sha256sum", winArch),
 				},
 			}
