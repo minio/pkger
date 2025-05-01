@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020-2024, MinIO, Inc.
+ * Copyright (C) 2020-2025, MinIO, Inc.
  *
  * This code is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License, version 3,
@@ -63,6 +63,9 @@ var (
 			Enum("deb", "rpm", "apk", "deb,rpm,apk")
 	releaseDir = app.Flag("releaseDir", "Release directory (that contains os-arch specific dirs) to pick up binaries to package, defaults to `appName+\"-release\"`").
 			Short('d').String()
+	scriptsDir = app.Flag("scriptsDir", "Directory that contains package scripts (preinstall.sh, postinstall.sh, preremove.sh and postremove.sh), defaults to the current directory").
+			Default("./").
+			Short('s').String()
 )
 
 const tmpl = `name: "{{ .App }}"
@@ -88,6 +91,10 @@ contents:
 - src: minio.service
   dst: /lib/systemd/system/minio.service
 {{end}}
+scripts:
+{{- range $name, $path := .Scripts }}
+  {{ $name }}: "{{ $path }}"
+{{- end }}
 `
 
 type dlInfo struct {
@@ -421,7 +428,7 @@ func main() {
 	}
 
 	semVerTag := semVerRelease(*release)
-	if err := doPackage(*appName, *release, *packager); err != nil {
+	if err := doPackage(*appName, *release, *packager, *scriptsDir); err != nil {
 		if !*ignoreMissingArch {
 			kingpin.Fatalf(err.Error())
 		} else {
@@ -457,6 +464,8 @@ type releaseTmpl struct {
 	Arch          string
 	Release       string
 	SemVerRelease string
+
+	Scripts map[string]string
 }
 
 const (
@@ -493,7 +502,7 @@ func semVerRelease(release string) string {
 }
 
 // nolint:funlen
-func doPackage(appName, release, packager string) error {
+func doPackage(appName, release, packager, scriptsDir string) error {
 	mtmpl, err := template.New("minio").Parse(tmpl)
 	if err != nil {
 		return err
@@ -547,6 +556,18 @@ func doPackage(appName, release, packager string) error {
   It is API compatible with Amazon S3 cloud storage service. Use MinIO to build
   high performance infrastructure for machine learning, analytics and application
   data workloads.`
+			}(),
+			Scripts: func() (scripts map[string]string) {
+				scripts = make(map[string]string)
+				for _, s := range []string{"preinstall", "postinstall", "preremove", "postremove"} {
+					path := filepath.Join(scriptsDir, s+".sh")
+					if _, err := os.Stat(path); err == nil {
+						scripts[s] = path
+					} else if !os.IsNotExist(err) {
+						fmt.Printf("unable to access to %s: %s \n", path, err)
+					}
+				}
+				return
 			}(),
 			OS:            "linux",
 			Arch:          arch,
