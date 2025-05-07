@@ -61,6 +61,8 @@ var (
 			Default("deb,rpm,apk").
 			Short('p').
 			Enum("deb", "rpm", "apk", "deb,rpm,apk")
+	license = app.Flag("license", "Set the license of this package, defaults to `AGPLv3`").
+		Default("AGPLv3").Short('l').String()
 	releaseDir = app.Flag("releaseDir", "Release directory (that contains os-arch specific dirs) to pick up binaries to package, defaults to `appName+\"-release\"`").
 			Short('d').String()
 	scriptsDir = app.Flag("scriptsDir", "Directory that contains package scripts (preinstall.sh, postinstall.sh, preremove.sh and postremove.sh), defaults to the current directory").
@@ -77,17 +79,13 @@ description: |
   {{ .Description }}
 vendor: "MinIO, Inc."
 homepage: "https://min.io"
-license: "AGPLv3"
+license: "{{ .License }}"
 rpm:
   group: Applications/File
 contents:
 - src: {{ .ReleaseDir }}/{{ .OS }}-{{ .Arch }}/{{ .Binary }}.{{ .Release }}
   dst: /usr/local/bin/{{ .App }}
-{{if eq .Binary "minio" }}
-- src: minio.service
-  dst: /lib/systemd/system/minio.service
-{{end}}
-{{if eq .Binary "aistor" }}
+{{if or (eq .Binary "minio") (eq .Binary "aistor")}}
 - src: minio.service
   dst: /lib/systemd/system/minio.service
 {{end}}
@@ -428,7 +426,7 @@ func main() {
 	}
 
 	semVerTag := semVerRelease(*release)
-	if err := doPackage(*appName, *release, *packager, *scriptsDir); err != nil {
+	if err := doPackage(*appName, *license, *release, *packager, *scriptsDir); err != nil {
 		if !*ignoreMissingArch {
 			kingpin.Fatalf(err.Error())
 		} else {
@@ -457,6 +455,7 @@ func main() {
 
 type releaseTmpl struct {
 	App           string
+	License       string
 	ReleaseDir    string
 	Binary        string
 	Description   string
@@ -502,7 +501,7 @@ func semVerRelease(release string) string {
 }
 
 // nolint:funlen
-func doPackage(appName, release, packager, scriptsDir string) error {
+func doPackage(appName, license, release, packager, scriptsDir string) error {
 	mtmpl, err := template.New("minio").Parse(tmpl)
 	if err != nil {
 		return err
@@ -531,6 +530,9 @@ func doPackage(appName, release, packager, scriptsDir string) error {
 					return "mcli"
 				}
 				return appName
+			}(),
+			License: func() string {
+				return license
 			}(),
 			ReleaseDir: releaseDirName(),
 			Binary: func() string {
