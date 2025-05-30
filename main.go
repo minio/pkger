@@ -165,21 +165,21 @@ func generateEnterpriseDownloadsJSON(semVerTag, appName string) enterpriseDownlo
 						Download: fmt.Sprintf("https://dl.min.io/aistor/mc/release/linux-%s/mc", arch),
 						Text: fmt.Sprintf(`wget https://dl.min.io/aistor/mc/release/linux-%s/mc
 chmod +x mc
-mcli alias set myminio/ http://MINIO-SERVER MYUSER MYPASSWORD`, arch),
+./mc alias set myminio/ http://MINIO-SERVER MYUSER MYPASSWORD`, arch),
 
 						Checksum: fmt.Sprintf("https://dl.min.io/aistor/mc/release/linux-%s/mc.sha256sum", arch),
 					},
 					RPM: &dlInfo{
 						Download: fmt.Sprintf("https://dl.min.io/aistor/mc/release/linux-%s/mcli-%s-1.%s.rpm", arch, semVerTag, rpmArchMap[arch]),
-						Checksum: fmt.Sprintf("https://dl.min.io/aistor/mc/release/linux-%s/mc-%s-1.%s.rpm.sha256sum", arch, semVerTag, rpmArchMap[arch]),
+						Checksum: fmt.Sprintf("https://dl.min.io/aistor/mc/release/linux-%s/mcli-%s-1.%s.rpm.sha256sum", arch, semVerTag, rpmArchMap[arch]),
 						Text: fmt.Sprintf(`dnf install https://dl.min.io/aistor/mc/release/linux-%s/mcli-%s-1.%s.rpm
 mcli alias set myminio/ http://MINIO-SERVER MYUSER MYPASSWORD`, arch, semVerTag, rpmArchMap[arch]),
 					},
 					Deb: &dlInfo{
 						Download: fmt.Sprintf("https://dl.min.io/aistor/mc/release/linux-%s/mcli_%s_%s.deb", arch, semVerTag, debArchMap[arch]),
-						Checksum: fmt.Sprintf("https://dl.min.io/aistor/mc/release/linux-%s/mc_%s_%s.deb.sha256sum", arch, semVerTag, debArchMap[arch]),
+						Checksum: fmt.Sprintf("https://dl.min.io/aistor/mc/release/linux-%s/mcli_%s_%s.deb.sha256sum", arch, semVerTag, debArchMap[arch]),
 						Text: fmt.Sprintf(`wget https://dl.min.io/aistor/mc/release/linux-%s/mcli_%s_%s.deb
-dpkg -i mc_%s_%s.deb
+dpkg -i mcli_%s_%s.deb
 mcli alias set myminio/ http://MINIO-SERVER MYUSER MYPASSWORD`, arch, semVerTag, debArchMap[arch], semVerTag, debArchMap[arch]),
 					},
 				}
@@ -391,7 +391,7 @@ MINIO_ROOT_USER=admin MINIO_ROOT_PASSWORD=password minio server /mnt/data --cons
 					Download: fmt.Sprintf("https://dl.min.io/client/mc/release/linux-%s/mc", linuxArch),
 					Text: fmt.Sprintf(`wget https://dl.min.io/client/mc/release/linux-%s/mc
 chmod +x mc
-mc alias set myminio/ http://MINIO-SERVER MYUSER MYPASSWORD`, linuxArch),
+./mc alias set myminio/ http://MINIO-SERVER MYUSER MYPASSWORD`, linuxArch),
 					Checksum: fmt.Sprintf("https://dl.min.io/client/mc/release/linux-%s/mc.sha256sum", linuxArch),
 				},
 				RPM: &dlInfo{
@@ -445,7 +445,7 @@ mc alias set myminio/ http://MINIO-SERVER MYUSER MYPASSWORD`,
 					Checksum: fmt.Sprintf("https://dl.min.io/client/mc/release/darwin-%s/mc.sha256sum", macArch),
 					Text: fmt.Sprintf(`curl --progress-bar -O https://dl.min.io/client/mc/release/darwin-%s/mc
 chmod +x mc
-mc alias set myminio/ http://MINIO-SERVER MYUSER MYPASSWORD`, macArch),
+./mc alias set myminio/ http://MINIO-SERVER MYUSER MYPASSWORD`, macArch),
 				},
 			}
 		}
