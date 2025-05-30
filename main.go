@@ -146,6 +146,8 @@ func generateEnterpriseDownloadsJSON(semVerTag, appName string) enterpriseDownlo
 		d.Subscriptions[subscription].MacOS["AIStor Object Store"] = map[string]downloadJSON{}
 		d.Subscriptions[subscription].Windows["AIStor Object Store"] = map[string]downloadJSON{}
 		d.Subscriptions[subscription].Linux["AIStor MinIO Client"] = map[string]downloadJSON{}
+		d.Subscriptions[subscription].MacOS["AIStor MinIO Client"] = map[string]downloadJSON{}
+		d.Subscriptions[subscription].Windows["AIStor MinIO Client"] = map[string]downloadJSON{}
 		d.Subscriptions[subscription].Linux["AIStor Key Manager"] = map[string]downloadJSON{}
 		d.Subscriptions[subscription].Linux["AIStor Catalog"] = map[string]downloadJSON{}
 		d.Subscriptions[subscription].Linux["AIStor Load Balancer"] = map[string]downloadJSON{}
