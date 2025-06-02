@@ -8,6 +8,7 @@ require (
 	github.com/alecthomas/kingpin v2.2.6+incompatible
 	github.com/goreleaser/nfpm/v2 v2.41.3
 	github.com/json-iterator/go v1.1.12
+	gopkg.in/yaml.v2 v2.4.0
 )
 
 require (

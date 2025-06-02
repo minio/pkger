@@ -23,6 +23,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -32,6 +33,7 @@ import (
 
 	"github.com/alecthomas/kingpin"
 	jsoniter "github.com/json-iterator/go"
+	"gopkg.in/yaml.v2"
 
 	"github.com/goreleaser/nfpm/v2"
 	_ "github.com/goreleaser/nfpm/v2/apk"
@@ -68,6 +70,7 @@ var (
 	scriptsDir = app.Flag("scriptsDir", "Directory that contains package scripts (preinstall.sh, postinstall.sh, preremove.sh and postremove.sh), defaults to the current directory").
 			Default("./").
 			Short('s').String()
+	deps = app.Flag("deps", "A json file that contains the dependencies for each package type").String()
 )
 
 const tmpl = `name: "{{ .App }}"
@@ -92,6 +95,14 @@ contents:
 scripts:
 {{- range $name, $path := .Scripts }}
   {{ $name }}: "{{ $path }}"
+{{- end }}
+overrides:
+{{- range $pkg, $deps := .Deps }}
+  {{ $pkg }}:
+    depends:
+{{range $deps}}
+      {{print "- " .}}
+{{end}}
 {{- end }}
 `
 
@@ -502,7 +513,7 @@ func main() {
 	}
 
 	semVerTag := semVerRelease(*release)
-	if err := doPackage(*appName, *license, *release, *packager, *scriptsDir); err != nil {
+	if err := doPackage(*appName, *license, *release, *packager, *deps, *scriptsDir); err != nil {
 		if !*ignoreMissingArch {
 			kingpin.Fatalf(err.Error())
 		} else {
@@ -541,6 +552,7 @@ type releaseTmpl struct {
 	SemVerRelease string
 
 	Scripts map[string]string
+	Deps    map[string][]string
 }
 
 const (
@@ -576,8 +588,30 @@ func semVerRelease(release string) string {
 	return rtime.Format(minioPkgReleaseTagTimeLayout) + ".0.0"
 }
 
+func parseDepsFile(path string) (map[string][]string, error) {
+	depsBytes, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	d := make(map[string][]string)
+	err = yaml.Unmarshal(depsBytes, &d)
+	if err != nil {
+		return nil, err
+	}
+	return d, nil
+}
+
 // nolint:funlen
-func doPackage(appName, license, release, packager, scriptsDir string) error {
+func doPackage(appName, license, release, packager, deps, scriptsDir string) error {
+	var pkgDeps map[string][]string
+	if deps != "" {
+		var err error
+		pkgDeps, err = parseDepsFile(deps)
+		if err != nil {
+			return err
+		}
+	}
+
 	mtmpl, err := template.New("minio").Parse(tmpl)
 	if err != nil {
 		return err
@@ -647,6 +681,7 @@ func doPackage(appName, license, release, packager, scriptsDir string) error {
 				}
 				return
 			}(),
+			Deps:          pkgDeps,
 			OS:            "linux",
 			Arch:          arch,
 			Release:       release,
