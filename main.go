@@ -233,8 +233,6 @@ chmod +x mincat
 						Download: fmt.Sprintf("https://dl.min.io/aistor/minio/release/linux-%s/minio", arch),
 						Text: fmt.Sprintf(`wget https://dl.min.io/aistor/minio/release/linux-%s/minio
 chmod +x minio
-export MINIO_ROOT_USER=adminuser
-export MINIO_ROOT_PASSWORD=adminpassword
 export MINIO_LICENSE="${HOME}/minio.license"
 ./minio server /mnt/data --console-address ":9001"`, arch),
 						Checksum: fmt.Sprintf("https://dl.min.io/aistor/minio/release/linux-%s/minio.sha256sum", arch),
@@ -243,8 +241,6 @@ export MINIO_LICENSE="${HOME}/minio.license"
 						Download: fmt.Sprintf("https://dl.min.io/aistor/minio/release/linux-%s/minio-%s-1.%s.rpm", arch, semVerTag, rpmArchMap[arch]),
 						Checksum: fmt.Sprintf("https://dl.min.io/aistor/minio/release/linux-%s/minio-%s-1.%s.rpm.sha256sum", arch, semVerTag, rpmArchMap[arch]),
 						Text: fmt.Sprintf(`sudo dnf install https://dl.min.io/aistor/minio/release/linux-%s/minio-%s-1.%s.rpm
-export MINIO_ROOT_USER=adminuser
-export MINIO_ROOT_PASSWORD=adminpassword
 export MINIO_LICENSE="${HOME}/minio.license"
 minio server /mnt/data --console-address ":9001"`, arch, semVerTag, rpmArchMap[arch]),
 					},
@@ -253,8 +249,6 @@ minio server /mnt/data --console-address ":9001"`, arch, semVerTag, rpmArchMap[a
 						Checksum: fmt.Sprintf("https://dl.min.io/aistor/minio/release/linux-%s/minio_%s_%s.deb.sha256sum", arch, semVerTag, debArchMap[arch]),
 						Text: fmt.Sprintf(`wget https://dl.min.io/aistor/minio/release/linux-%s/minio_%s_%s.deb
 sudo dpkg -i minio_%s_%s.deb
-export MINIO_ROOT_USER=adminuser
-export MINIO_ROOT_PASSWORD=adminpassword
 export MINIO_LICENSE="${HOME}/minio.license"
 minio server /mnt/data --console-address ":9001"`, arch, semVerTag, debArchMap[arch], semVerTag, debArchMap[arch]),
 					},
@@ -268,24 +262,34 @@ minio server /mnt/data --console-address ":9001"`, arch, semVerTag, debArchMap[a
 		} {
 			if appName == "mc-enterprise" {
 				d.Subscriptions[subscription].MacOS["AIStor MinIO Client"][arch] = downloadJSON{
+					Homebrew: &dlInfo{
+						Download: fmt.Sprintf("https://dl.min.io/aistor/mc/release/darwin-%s/mc", arch),
+						Checksum: fmt.Sprintf("https://dl.min.io/aistor/mc/release/darwin-%s/mc.sha256sum", arch),
+						Text: `brew install minio/aistor/mc
+mc alias set myminio/ http://MINIO-SERVER MYUSER MYPASSWORD`,
+					},
 					Bin: &dlInfo{
 						Download: fmt.Sprintf("https://dl.min.io/aistor/mc/release/darwin-%s/mc", arch),
 						Text: fmt.Sprintf(`curl --progress-bar -O https://dl.min.io/aistor/mc/release/darwin-%s/mc
 chmod +x mc
 ./mc alias set myminio/ http://MINIO-SERVER MYUSER MYPASSWORD`, arch),
-
-						Checksum: fmt.Sprintf("https://dl.min.io/aistor/mc/release/darwin-%s/mc.sha256sum", arch),
 					},
 				}
 			}
 			if appName == "minio-enterprise" {
 				d.Subscriptions[subscription].MacOS["AIStor Object Store"][arch] = downloadJSON{
+					Homebrew: &dlInfo{
+						Download: fmt.Sprintf("https://dl.min.io/server/minio/release/darwin-%s/minio", arch),
+						Checksum: fmt.Sprintf("https://dl.min.io/server/minio/release/darwin-%s/minio.sha256sum", arch),
+						Text: `brew install minio/aistor/minio
+export MINIO_LICENSE="${HOME}/minio.license"
+minio server /mnt/data --console-address ":9001"`,
+					},
+
 					Bin: &dlInfo{
 						Download: fmt.Sprintf("https://dl.min.io/aistor/minio/release/darwin-%s/minio", arch),
 						Text: fmt.Sprintf(`curl --progress-bar -O https://dl.min.io/aistor/minio/release/darwin-%s/minio
 chmod +x minio
-export MINIO_ROOT_USER=adminuser
-export MINIO_ROOT_PASSWORD=adminpassword
 export MINIO_LICENSE="${HOME}/minio.license"
 ./minio server /mnt/data --console-address ":9001"`, arch),
 						Checksum: fmt.Sprintf("https://dl.min.io/aistor/minio/release/darwin-%s/minio.sha256sum", arch),
@@ -313,8 +317,6 @@ mc.exe alias set myminio/ http://MINIO-SERVER MYUSER MYPASSWORD`, arch),
 					Bin: &dlInfo{
 						Download: fmt.Sprintf("https://dl.min.io/aistor/minio/release/windows-%s/minio.exe", arch),
 						Text: fmt.Sprintf(`Invoke-WebRequest -Uri "https://dl.min.io/aistor/minio/release/windows-%s/minio.exe" -OutFile "minio.exe"
-setx MINIO_ROOT_USER adminuser
-setx MINIO_ROOT_PASSWORD adminpassword
 setx MINIO_LICENSE C:\Users\<Username>\minio.license
 minio.exe server F:\Data --console-address ":9001"`, arch),
 						Checksum: fmt.Sprintf("https://dl.min.io/aistor/minio/release/windows-%s/minio.exe.sha256sum", arch),
@@ -368,21 +370,21 @@ func generateDownloadsJSON(semVerTag string, appName string) downloadsJSON {
 					Download: fmt.Sprintf("https://dl.min.io/server/minio/release/linux-%s/minio", linuxArch),
 					Text: fmt.Sprintf(`wget https://dl.min.io/server/minio/release/linux-%s/minio
 chmod +x minio
-MINIO_ROOT_USER=admin MINIO_ROOT_PASSWORD=password ./minio server /mnt/data --console-address ":9001"`, linuxArch),
+./minio server /mnt/data --console-address ":9001"`, linuxArch),
 					Checksum: fmt.Sprintf("https://dl.min.io/server/minio/release/linux-%s/minio.sha256sum", linuxArch),
 				},
 				RPM: &dlInfo{
 					Download: fmt.Sprintf("https://dl.min.io/server/minio/release/linux-%s/minio-%s-1.%s.rpm", linuxArch, semVerTag, rpmArchMap[linuxArch]),
 					Checksum: fmt.Sprintf("https://dl.min.io/server/minio/release/linux-%s/minio-%s-1.%s.rpm.sha256sum", linuxArch, semVerTag, rpmArchMap[linuxArch]),
 					Text: fmt.Sprintf(`dnf install https://dl.min.io/server/minio/release/linux-%s/minio-%s-1.%s.rpm
-MINIO_ROOT_USER=admin MINIO_ROOT_PASSWORD=password minio server /mnt/data --console-address ":9001"`, linuxArch, semVerTag, rpmArchMap[linuxArch]),
+minio server /mnt/data --console-address ":9001"`, linuxArch, semVerTag, rpmArchMap[linuxArch]),
 				},
 				Deb: &dlInfo{
 					Download: fmt.Sprintf("https://dl.min.io/server/minio/release/linux-%s/minio_%s_%s.deb", linuxArch, semVerTag, debArchMap[linuxArch]),
 					Checksum: fmt.Sprintf("https://dl.min.io/server/minio/release/linux-%s/minio_%s_%s.deb.sha256sum", linuxArch, semVerTag, debArchMap[linuxArch]),
 					Text: fmt.Sprintf(`wget https://dl.min.io/server/minio/release/linux-%s/minio_%s_%s.deb
 dpkg -i minio_%s_%s.deb
-MINIO_ROOT_USER=admin MINIO_ROOT_PASSWORD=password minio server /mnt/data --console-address ":9001"`, linuxArch, semVerTag, debArchMap[linuxArch], semVerTag, debArchMap[linuxArch]),
+minio server /mnt/data --console-address ":9001"`, linuxArch, semVerTag, debArchMap[linuxArch], semVerTag, debArchMap[linuxArch]),
 				},
 			}
 		}
@@ -432,14 +434,14 @@ mcli alias set myminio/ http://MINIO-SERVER MYUSER MYPASSWORD`, linuxArch, semVe
 					Download: fmt.Sprintf("https://dl.min.io/server/minio/release/darwin-%s/minio", macArch),
 					Checksum: fmt.Sprintf("https://dl.min.io/server/minio/release/darwin-%s/minio.sha256sum", macArch),
 					Text: `brew install minio/stable/minio
-MINIO_ROOT_USER=admin MINIO_ROOT_PASSWORD=password minio server /mnt/data --console-address ":9001"`,
+minio server /mnt/data --console-address ":9001"`,
 				},
 				Bin: &dlInfo{
 					Download: fmt.Sprintf("https://dl.min.io/server/minio/release/darwin-%s/minio", macArch),
 					Checksum: fmt.Sprintf("https://dl.min.io/server/minio/release/darwin-%s/minio.sha256sum", macArch),
 					Text: fmt.Sprintf(`curl --progress-bar -O https://dl.min.io/server/minio/release/darwin-%s/minio
 chmod +x minio
-MINIO_ROOT_USER=admin MINIO_ROOT_PASSWORD=password ./minio server /mnt/data --console-address ":9001"`, macArch),
+./minio server /mnt/data --console-address ":9001"`, macArch),
 				},
 			}
 		}
@@ -469,8 +471,6 @@ chmod +x mc
 				Bin: &dlInfo{
 					Download: fmt.Sprintf("https://dl.min.io/server/minio/release/windows-%s/minio.exe", winArch),
 					Text: fmt.Sprintf(`Invoke-WebRequest -Uri "https://dl.min.io/server/minio/release/windows-%s/minio.exe" -OutFile "minio.exe"
-setx MINIO_ROOT_USER admin
-setx MINIO_ROOT_PASSWORD password
 minio.exe server F:\Data --console-address ":9001"`, winArch),
 					Checksum: fmt.Sprintf("https://dl.min.io/server/minio/release/windows-%s/minio.exe.sha256sum", winArch),
 				},
