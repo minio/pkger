@@ -2,7 +2,7 @@ module github.com/minio/pkger
 
 go 1.23.0
 
-toolchain go1.23.8
+toolchain go1.24.4
 
 require (
 	github.com/alecthomas/kingpin v2.2.6+incompatible
