@@ -51,25 +51,37 @@ var (
 		Default("minio").
 		Short('a').
 		String()
+
 	ignoreMissingArch = app.Flag("ignore", "ignore any missing arch while packaging").
 				Default("false").
 				Short('i').
 				Bool()
+
+	noPackages = app.Flag("no-pkg", "do not build any packages").
+			Default("false").
+			Short('n').
+			Bool()
+
 	release = app.Flag("release", "Current release tag").
 		Default("").
 		Short('r').
 		String()
+
 	packager = app.Flag("packager", "Select packager implementation to use, defaults to: `deb,rpm,apk`").
 			Default("deb,rpm,apk").
 			Short('p').
 			Enum("deb", "rpm", "apk", "deb,rpm,apk")
+
 	license = app.Flag("license", "Set the license of this package, defaults to `AGPLv3`").
 		Default("AGPLv3").Short('l').String()
+
 	releaseDir = app.Flag("releaseDir", "Release directory (that contains os-arch specific dirs) to pick up binaries to package, defaults to `appName+\"-release\"`").
 			Short('d').String()
+
 	scriptsDir = app.Flag("scriptsDir", "Directory that contains package scripts (preinstall.sh, postinstall.sh, preremove.sh and postremove.sh), defaults to the current directory").
 			Default("./").
 			Short('s').String()
+
 	deps = app.Flag("deps", "A json file that contains the dependencies for each package type").String()
 )
 
@@ -531,11 +543,13 @@ func main() {
 	}
 
 	semVerTag := semVerRelease(*release)
-	if err := doPackage(*appName, *license, *release, *packager, *deps, *scriptsDir); err != nil {
-		if !*ignoreMissingArch {
-			kingpin.Fatalf(err.Error())
-		} else {
-			kingpin.Errorf(err.Error())
+	if !*noPackages {
+		if err := doPackage(*appName, *license, *release, *packager, *deps, *scriptsDir); err != nil {
+			if !*ignoreMissingArch {
+				kingpin.Fatalf(err.Error())
+			} else {
+				kingpin.Errorf(err.Error())
+			}
 		}
 	}
 
