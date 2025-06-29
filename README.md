@@ -1,9 +1,5 @@
 ## pkger
 
-```
-pkger -r RELEASE.2021-01-08T19-38-39Z
-```
-
 ## Packaging minio during development (for testing, etc)
 
 1. First install pkger so it is available in PATH.
@@ -29,7 +25,6 @@ wget -O minio.service "https://raw.githubusercontent.com/minio/minio-service/ref
 4. Run pkger:
 
 ```shell
-# Now run pkger.
 pkger -r $VERSION --appName minio --ignore --releaseDir=dist
 ```
 
