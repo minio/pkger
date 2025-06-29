@@ -278,18 +278,16 @@ podman run minio/aistor/minio --version`,
 			if appName == "mc-enterprise" {
 				d.Subscriptions[subscription].MacOS["AIStor Client"][arch] = downloadJSON{
 					Homebrew: &dlInfo{
-						Download: "https://dl.min.io/aistor/mc/release/darwin-arm64/mc",
+						Download: fmt.Sprintf("https://dl.min.io/aistor/mc/release/darwin-%s/mc", arch),
 						Text:     `brew install minio/aistor/mc`,
-
-						Checksum: "https://dl.min.io/aistor/mc/release/darwin-arm64/mc.sha256sum",
+						Checksum: fmt.Sprintf("https://dl.min.io/aistor/mc/release/darwin-%s/mc.sha256sum", arch),
 					},
 					Bin: &dlInfo{
-						Download: "https://dl.min.io/aistor/mc/release/darwin-arm64/mc",
-						Text: `curl --progress-bar -O https://dl.min.io/aistor/mc/release/darwin-arm64/mc
+						Download: fmt.Sprintf("https://dl.min.io/aistor/mc/release/darwin-%s/mc", arch),
+						Text: fmt.Sprintf(`curl --progress-bar -O https://dl.min.io/aistor/mc/release/darwin-%s/mc
 chmod +x mc
-./mc --version`,
-
-						Checksum: "https://dl.min.io/aistor/mc/release/darwin-arm64/mc.sha256sum",
+./mc --version`, arch),
+						Checksum: fmt.Sprintf("https://dl.min.io/aistor/mc/release/darwin-%s/mc.sha256sum", arch),
 					},
 				}
 			}
@@ -303,9 +301,9 @@ chmod +x mc
 
 					Bin: &dlInfo{
 						Download: fmt.Sprintf("https://dl.min.io/aistor/minio/release/darwin-%s/minio", arch),
-						Text: `curl --progress-bar -O https://dl.min.io/aistor/minio/release/darwin-arm64/minio
+						Text: fmt.Sprintf(`curl --progress-bar -O https://dl.min.io/aistor/minio/release/darwin-%s/minio
 chmod +x minio
-./minio --version`,
+./minio --version`, arch),
 						Checksum: fmt.Sprintf("https://dl.min.io/aistor/minio/release/darwin-%s/minio.sha256sum", arch),
 					},
 				}
@@ -319,7 +317,7 @@ chmod +x minio
 				d.Subscriptions[subscription].Windows["AIStor Client"][arch] = downloadJSON{
 					Bin: &dlInfo{
 						Download: fmt.Sprintf("https://dl.min.io/aistor/mc/release/windows-%s/mc.exe", arch),
-						Text: fmt.Sprintf(`Invoke-WebRequest -Uri "https://dl.minio.io/aistor/mc/release/windows-%s/mc.exe" -OutFile "mc.exe"
+						Text: fmt.Sprintf(`Invoke-WebRequest -Uri "https://dl.min.io/aistor/mc/release/windows-%s/mc.exe" -OutFile "mc.exe"
 mc.exe --version`, arch),
 
 						Checksum: fmt.Sprintf("https://dl.min.io/aistor/mc/release/windows-%s/mc.exe.sha256sum", arch),
@@ -500,7 +498,7 @@ minio.exe --version`, winArch),
 			d.Windows["MinIO Client"][winArch] = downloadJSON{
 				Bin: &dlInfo{
 					Download: fmt.Sprintf("https://dl.min.io/client/mc/release/windows-%s/mc.exe", winArch),
-					Text: fmt.Sprintf(`Invoke-WebRequest -Uri "https://dl.minio.io/client/mc/release/windows-%s/mc.exe" -OutFile "mc.exe"
+					Text: fmt.Sprintf(`Invoke-WebRequest -Uri "https://dl.min.io/client/mc/release/windows-%s/mc.exe" -OutFile "mc.exe"
 mc.exe --version`, winArch),
 					Checksum: fmt.Sprintf("https://dl.min.io/client/mc/release/windows-%s/mc.exe.sha256sum", winArch),
 				},
