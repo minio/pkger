@@ -327,16 +327,16 @@ sudo mv warp /usr/local/bin/`, arch),
 						Checksum: fmt.Sprintf("https://dl.min.io/aistor/warp/release/linux-%s/warp.sha256sum", arch),
 					},
 					RPM: &dlInfo{
-						Download: fmt.Sprintf("https://dl.min.io/aistor/warp/release/linux-%s/warp-v0.7.6-1.%s.rpm", arch, rpmArchMap[arch]),
-						Checksum: fmt.Sprintf("https://dl.min.io/aistor/warp/release/linux-%s/warp-v0.7.6-1.%s.rpm.sha256sum", arch, rpmArchMap[arch]),
-						Text: fmt.Sprintf(`wget https://dl.min.io/warp/release/linux-%s/warp-v0.7.6-1.%s.rpm
-  sudo rpm -ivh warp-v0.7.6-1.%s.rpm`, arch, rpmArchMap[arch], rpmArchMap[arch]),
+						Download: fmt.Sprintf("https://dl.min.io/aistor/warp/release/linux-%s/warp-%s-1.%s.rpm", arch, semVerTag, rpmArchMap[arch]),
+						Checksum: fmt.Sprintf("https://dl.min.io/aistor/warp/release/linux-%s/warp-%s-1.%s.rpm.sha256sum", arch, semVerTag, rpmArchMap[arch]),
+						Text: fmt.Sprintf(`wget https://dl.min.io/warp/release/linux-%s/warp-%s-1.%s.rpm
+  sudo rpm -ivh warp-%s-1.%s.rpm`, arch, semVerTag, rpmArchMap[arch], semVerTag, rpmArchMap[arch]),
 					},
 					Deb: &dlInfo{
-						Download: fmt.Sprintf("https://dl.min.io/aistor/warp/release/linux-%s/warp_v0.7.6_%s.deb", arch, debArchMap[arch]),
-						Checksum: fmt.Sprintf("https://dl.min.io/aistor/warp/release/linux-%s/warp_v0.7.6_%s.deb.sha256sum", arch, debArchMap[arch]),
-						Text: fmt.Sprintf(`wget https://dl.min.io/aistor/warp/release/linux-%s/warp_v0.7.6_%s.deb
-sudo dpkg -i warp-v0.7.6_%s.deb`, arch, semVerTag, debArchMap[arch]),
+						Download: fmt.Sprintf("https://dl.min.io/aistor/warp/release/linux-%s/warp_%s_%s.deb", arch, semVerTag, debArchMap[arch]),
+						Checksum: fmt.Sprintf("https://dl.min.io/aistor/warp/release/linux-%s/warp_%s_%s.deb.sha256sum", arch, semVerTag, debArchMap[arch]),
+						Text: fmt.Sprintf(`wget https://dl.min.io/aistor/warp/release/linux-%s/warp_%s_%s.deb
+sudo dpkg -i warp_%s_%s.deb`, arch, semVerTag, debArchMap[arch], semVerTag, debArchMap[arch]),
 					},
 				}
 
