@@ -208,18 +208,18 @@ func TestGenerateSidekickDownloadsJSON(t *testing.T) {
 	}
 
 	// Verify only amd64 and arm64
-	if _, ok := result.Linux["Sidekick"]["amd64"]; !ok {
+	if _, ok := result.Linux["MinIO Sidekick"]["amd64"]; !ok {
 		t.Error("amd64 architecture missing")
 	}
-	if _, ok := result.Linux["Sidekick"]["arm64"]; !ok {
+	if _, ok := result.Linux["MinIO Sidekick"]["arm64"]; !ok {
 		t.Error("arm64 architecture missing")
 	}
-	if _, ok := result.Linux["Sidekick"]["ppc64le"]; ok {
+	if _, ok := result.Linux["MinIO Sidekick"]["ppc64le"]; ok {
 		t.Error("ppc64le should not be supported for sidekick")
 	}
 
 	// Verify no binary downloads, only packages
-	linuxData := result.Linux["Sidekick"]["amd64"]
+	linuxData := result.Linux["MinIO Sidekick"]["amd64"]
 	if linuxData.Bin != nil {
 		t.Error("Sidekick should not have binary downloads")
 	}
@@ -250,31 +250,31 @@ func TestGenerateWarpDownloadsJSON(t *testing.T) {
 	}
 
 	// Verify Linux architectures (amd64, arm64 only)
-	if _, ok := result.Linux["Warp"]["amd64"]; !ok {
+	if _, ok := result.Linux["MinIO Warp"]["amd64"]; !ok {
 		t.Error("amd64 architecture missing for Linux")
 	}
-	if _, ok := result.Linux["Warp"]["arm64"]; !ok {
+	if _, ok := result.Linux["MinIO Warp"]["arm64"]; !ok {
 		t.Error("arm64 architecture missing for Linux")
 	}
-	if _, ok := result.Linux["Warp"]["ppc64le"]; ok {
+	if _, ok := result.Linux["MinIO Warp"]["ppc64le"]; ok {
 		t.Error("ppc64le should not be supported for warp")
 	}
 
 	// Verify MacOS only arm64
-	if _, ok := result.MacOS["Warp"]["arm64"]; !ok {
+	if _, ok := result.MacOS["MinIO Warp"]["arm64"]; !ok {
 		t.Error("arm64 architecture missing for MacOS")
 	}
-	if _, ok := result.MacOS["Warp"]["amd64"]; ok {
+	if _, ok := result.MacOS["MinIO Warp"]["amd64"]; ok {
 		t.Error("amd64 should not be supported for MacOS warp")
 	}
 
 	// Verify Windows only amd64
-	if _, ok := result.Windows["Warp"]["amd64"]; !ok {
+	if _, ok := result.Windows["MinIO Warp"]["amd64"]; !ok {
 		t.Error("amd64 architecture missing for Windows")
 	}
 
 	// Verify version format in URLs (without 'v' prefix)
-	linuxData := result.Linux["Warp"]["amd64"]
+	linuxData := result.Linux["MinIO Warp"]["amd64"]
 	if strings.Contains(linuxData.RPM.Download, "v0.4.3") {
 		t.Error("RPM URL should not contain 'v' prefix")
 	}
@@ -391,7 +391,7 @@ func TestURLPathStructure(t *testing.T) {
 
 	t.Run("Sidekick uses /aistor/sidekick/release/", func(t *testing.T) {
 		result := generateSidekickDownloadsJSON(semVerTag, releaseTag)
-		rpmURL := result.Linux["Sidekick"]["amd64"].RPM.Download
+		rpmURL := result.Linux["MinIO Sidekick"]["amd64"].RPM.Download
 		if !strings.HasPrefix(rpmURL, "https://dl.min.io/aistor/sidekick/release/") {
 			t.Errorf("Unexpected URL structure: %s", rpmURL)
 		}
@@ -399,7 +399,7 @@ func TestURLPathStructure(t *testing.T) {
 
 	t.Run("Warp uses /aistor/warp/release/", func(t *testing.T) {
 		result := generateWarpDownloadsJSON("0.4.3", "v0.4.3")
-		binURL := result.Linux["Warp"]["amd64"].Bin.Download
+		binURL := result.Linux["MinIO Warp"]["amd64"].Bin.Download
 		if !strings.HasPrefix(binURL, "https://dl.min.io/aistor/warp/release/") {
 			t.Errorf("Unexpected URL structure: %s", binURL)
 		}
