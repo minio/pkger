@@ -314,7 +314,7 @@ sudo mv warp /usr/local/bin/`, arch),
 					RPM: &dlInfo{
 						Download: fmt.Sprintf("https://dl.min.io/aistor/warp/release/linux-%s/warp-%s-1.%s.rpm", arch, semVerTag, rpmArchMap[arch]),
 						Checksum: fmt.Sprintf("https://dl.min.io/aistor/warp/release/linux-%s/warp-%s-1.%s.rpm.sha256sum", arch, semVerTag, rpmArchMap[arch]),
-						Text: fmt.Sprintf(`wget https://dl.min.io/warp/release/linux-%s/warp-%s-1.%s.rpm
+						Text: fmt.Sprintf(`wget https://dl.min.io/aistor/warp/release/linux-%s/warp-%s-1.%s.rpm
   sudo rpm -ivh warp-%s-1.%s.rpm`, arch, semVerTag, rpmArchMap[arch], semVerTag, rpmArchMap[arch]),
 					},
 					Deb: &dlInfo{
