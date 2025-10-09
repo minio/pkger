@@ -129,6 +129,7 @@ type downloadJSON struct {
 	Bin      *dlInfo `json:"Binary,omitempty"`
 	RPM      *dlInfo `json:"RPM,omitempty"`
 	Deb      *dlInfo `json:"DEB,omitempty"`
+	APK      *dlInfo `json:"APK,omitempty"`
 	Homebrew *dlInfo `json:"Homebrew,omitempty"`
 	HELM     *dlInfo `json:"HELM,omitempty"`
 	Kubectl  *dlInfo `json:"kubectl,omitempty"`
@@ -157,6 +158,11 @@ var debArchMap = map[string]string{
 	"arm64": "arm64",
 }
 
+var apkArchMap = map[string]string{
+	"amd64": "amd64",
+	"arm64": "arm64",
+}
+
 func generateEnterpriseDownloadsJSON(semVerTag, appName string) enterpriseDownloadsJSON {
 	d := enterpriseDownloadsJSON{
 		Subscriptions: map[string]downloadsJSON{},
@@ -174,6 +180,8 @@ func generateEnterpriseDownloadsJSON(semVerTag, appName string) enterpriseDownlo
 		d.Subscriptions[subscription].Linux["AIStor Client"] = map[string]downloadJSON{}
 		d.Subscriptions[subscription].Linux["AIStor Key Manager"] = map[string]downloadJSON{}
 		d.Subscriptions[subscription].Linux["AIStor Loadbalancer/Firewall"] = map[string]downloadJSON{}
+		d.Subscriptions[subscription].Linux["AIStor Sidekick"] = map[string]downloadJSON{}
+		d.Subscriptions[subscription].Linux["AIStor Warp"] = map[string]downloadJSON{}
 		// Kubernetes
 		d.Subscriptions[subscription].Kubernetes["AIStor Server"] = map[string]downloadJSON{}
 		d.Subscriptions[subscription].Kubernetes["AIStor Client"] = map[string]downloadJSON{}
@@ -183,9 +191,11 @@ func generateEnterpriseDownloadsJSON(semVerTag, appName string) enterpriseDownlo
 		// Windows
 		d.Subscriptions[subscription].Windows["AIStor Server"] = map[string]downloadJSON{}
 		d.Subscriptions[subscription].Windows["AIStor Client"] = map[string]downloadJSON{}
+		d.Subscriptions[subscription].Windows["AIStor Warp"] = map[string]downloadJSON{}
 		// MacOS
 		d.Subscriptions[subscription].MacOS["AIStor Server"] = map[string]downloadJSON{}
 		d.Subscriptions[subscription].MacOS["AIStor Client"] = map[string]downloadJSON{}
+		d.Subscriptions[subscription].MacOS["AIStor Warp"] = map[string]downloadJSON{}
 	}
 
 	for subscription := range d.Subscriptions {
@@ -274,6 +284,62 @@ minio --version`, arch, semVerTag, debArchMap[arch], semVerTag, debArchMap[arch]
 					},
 				}
 
+				d.Subscriptions[subscription].Linux["AIStor Sidekick"][arch] = downloadJSON{
+					RPM: &dlInfo{
+						Download: fmt.Sprintf("https://dl.min.io/aistor/sidekick/release/linux-%s/sidekick-%s-1.%s.rpm", arch, semVerTag, rpmArchMap[arch]),
+						Checksum: fmt.Sprintf("https://dl.min.io/aistor/sidekick/release/linux-%s/sidekick-%s-1.%s.rpm.sha256sum", arch, semVerTag, rpmArchMap[arch]),
+						Text: fmt.Sprintf(`# Download the RPM package
+wget https://dl.min.io/aistor/sidekick/release/linux-%s/sidekick-%s-1.%s.rpm
+
+# Install with yum/dnf
+sudo yum install sidekick-%s-1.%s.rpm
+# or
+sudo dnf install sidekick-%s-1.%s.rpm`, arch, semVerTag, rpmArchMap[arch], semVerTag, rpmArchMap[arch], semVerTag, rpmArchMap[arch]),
+					},
+					Deb: &dlInfo{
+						Download: fmt.Sprintf("https://dl.min.io/aistor/sidekick/release/linux-%s/sidekick_%s_%s.deb", arch, semVerTag, debArchMap[arch]),
+						Checksum: fmt.Sprintf("https://dl.min.io/aistor/sidekick/release/linux-%s/sidekick_%s_%s.deb.sha256sum", arch, semVerTag, debArchMap[arch]),
+						Text: fmt.Sprintf(`# Download the DEB package
+wget https://dl.min.io/aistor/sidekick/release/linux-%s/sidekick_%s_%s.deb
+						
+# Install with apt
+sudo apt install ./sidekick_%s_%s.deb
+# or
+sudo dpkg -i sidekick_%s_%s.deb`, arch, semVerTag, debArchMap[arch], semVerTag, debArchMap[arch], semVerTag, debArchMap[arch]),
+					},
+					APK: &dlInfo{
+						Download: fmt.Sprintf("https://dl.min.io/aistor/sidekick/release/linux-%s/sidekick_%s_%s.apk", arch, semVerTag, debArchMap[arch]),
+						Checksum: fmt.Sprintf("https://dl.min.io/aistor/sidekick/release/linux-%s/sidekick_%s_%s.apk.sha256sum", arch, semVerTag, debArchMap[arch]),
+						Text: fmt.Sprintf(`# Download the APK package
+wget https://dl.min.io/aistor/sidekick/release/linux-%s/sidekick_%s_%s.apk
+
+# Install with apk
+sudo apk add --allow-untrusted sidekick_%s_%s.apk`, arch, semVerTag, apkArchMap[arch], semVerTag, apkArchMap[arch]),
+					},
+				}
+
+				d.Subscriptions[subscription].Linux["AIStor Warp"][arch] = downloadJSON{
+					Bin: &dlInfo{
+						Download: fmt.Sprintf("https://dl.min.io/aistor/warp/release/linux-%s/warp", arch),
+						Text: fmt.Sprintf(`wget https://dl.min.io/aistor/warp/release/linux-%s/warp -O warp
+chmod +x warp
+sudo mv warp /usr/local/bin/`, arch),
+						Checksum: fmt.Sprintf("https://dl.min.io/aistor/warp/release/linux-%s/warp.sha256sum", arch),
+					},
+					RPM: &dlInfo{
+						Download: fmt.Sprintf("https://dl.min.io/aistor/warp/release/linux-%s/warp-%s-1.%s.rpm", arch, semVerTag, rpmArchMap[arch]),
+						Checksum: fmt.Sprintf("https://dl.min.io/aistor/warp/release/linux-%s/warp-%s-1.%s.rpm.sha256sum", arch, semVerTag, rpmArchMap[arch]),
+						Text: fmt.Sprintf(`wget https://dl.min.io/warp/release/linux-%s/warp-%s-1.%s.rpm
+  sudo rpm -ivh warp-%s-1.%s.rpm`, arch, semVerTag, rpmArchMap[arch], semVerTag, rpmArchMap[arch]),
+					},
+					Deb: &dlInfo{
+						Download: fmt.Sprintf("https://dl.min.io/aistor/warp/release/linux-%s/warp_%s_%s.deb", arch, semVerTag, debArchMap[arch]),
+						Checksum: fmt.Sprintf("https://dl.min.io/aistor/warp/release/linux-%s/warp_%s_%s.deb.sha256sum", arch, semVerTag, debArchMap[arch]),
+						Text: fmt.Sprintf(`wget https://dl.min.io/aistor/warp/release/linux-%s/warp_%s_%s.deb
+sudo dpkg -i warp_%s_%s.deb`, arch, semVerTag, debArchMap[arch], semVerTag, debArchMap[arch]),
+					},
+				}
+
 				d.Subscriptions[subscription].Docker["AIStor Server"][arch] = downloadJSON{
 					Podman: &dlInfo{
 						Text: `podman pull quay.io/minio/aistor/minio:latest
@@ -319,6 +385,16 @@ chmod +x minio
 						Checksum: fmt.Sprintf("https://dl.min.io/aistor/minio/release/darwin-%s/minio.sha256sum", arch),
 					},
 				}
+
+				d.Subscriptions[subscription].MacOS["AIStor Warp"][arch] = downloadJSON{
+					Bin: &dlInfo{
+						Download: fmt.Sprintf("https://dl.min.io/aistor/warp/release/darwin-%s/warp", arch),
+						Text: fmt.Sprintf(`wget https://dl.min.io/aistor/warp/release/darwin-%s/warp -O warp
+chmod +x warp
+sudo mv warp /usr/local/bin/`, arch),
+						Checksum: fmt.Sprintf("https://dl.min.io/aistor/warp/release/darwin-%s/warp.sha256sum", arch),
+					},
+				}
 			}
 		}
 
@@ -344,6 +420,15 @@ mc.exe --version`, arch),
 						Text: fmt.Sprintf(`Invoke-WebRequest -Uri "https://dl.min.io/aistor/minio/release/windows-%s/minio.exe" -OutFile "minio.exe"
 minio.exe --version`, arch),
 						Checksum: fmt.Sprintf("https://dl.min.io/aistor/minio/release/windows-%s/minio.exe.sha256sum", arch),
+					},
+				}
+
+				d.Subscriptions[subscription].Windows["AIStor Warp"][arch] = downloadJSON{
+					Bin: &dlInfo{
+						Download: fmt.Sprintf("https://dl.min.io/aistor/warp/release/windows-%s/warp.exe", arch),
+						Text: fmt.Sprintf(`# Download from https://dl.min.io/aistor/warp/release/windows-%s/warp.exe
+# Add to PATH or run directly`, arch),
+						Checksum: fmt.Sprintf("https://dl.min.io/aistor/warp/release/windows-%s/warp.exe.sha256sum", arch),
 					},
 				}
 			}
