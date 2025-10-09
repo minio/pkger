@@ -590,6 +590,43 @@ mc.exe --version`, winArch),
 	return d
 }
 
+func generateSidekickDownloadsJSON(semVerTag string) downloadsJSON {
+	d := downloadsJSON{
+		Linux: make(map[string]map[string]downloadJSON),
+	}
+
+	d.Linux["Sidekick"] = map[string]downloadJSON{}
+
+	for _, arch := range []string{"amd64", "arm64"} {
+		d.Linux["Sidekick"][arch] = downloadJSON{
+			RPM: &dlInfo{
+				Download: fmt.Sprintf("https://dl.min.io/aistor/sidekick/release/linux-%s/sidekick-%s-1.%s.rpm", arch, semVerTag, rpmArchMap[arch]),
+				Checksum: fmt.Sprintf("https://dl.min.io/aistor/sidekick/release/linux-%s/sidekick-%s-1.%s.rpm.sha256sum", arch, semVerTag, rpmArchMap[arch]),
+				Text: fmt.Sprintf(`# Download the RPM package
+wget https://dl.min.io/aistor/sidekick/release/linux-%s/sidekick-%s-1.%s.rpm
+
+# Install with yum/dnf
+sudo yum install sidekick-%s-1.%s.rpm
+# or
+sudo dnf install sidekick-%s-1.%s.rpm`, arch, semVerTag, rpmArchMap[arch], semVerTag, rpmArchMap[arch], semVerTag, rpmArchMap[arch]),
+			},
+			Deb: &dlInfo{
+				Download: fmt.Sprintf("https://dl.min.io/aistor/sidekick/release/linux-%s/sidekick_%s_%s.deb", arch, semVerTag, debArchMap[arch]),
+				Checksum: fmt.Sprintf("https://dl.min.io/aistor/sidekick/release/linux-%s/sidekick_%s_%s.deb.sha256sum", arch, semVerTag, debArchMap[arch]),
+				Text: fmt.Sprintf(`# Download the DEB package
+wget https://dl.min.io/aistor/sidekick/release/linux-%s/sidekick_%s_%s.deb
+
+# Install with apt
+sudo apt install ./sidekick_%s_%s.deb
+# or
+sudo dpkg -i sidekick_%s_%s.deb`, arch, semVerTag, debArchMap[arch], semVerTag, debArchMap[arch], semVerTag, debArchMap[arch]),
+			},
+		}
+	}
+
+	return d
+}
+
 func releaseDirName() string {
 	if *releaseDir != "" {
 		return *releaseDir
@@ -628,6 +665,8 @@ func main() {
 	switch *appName {
 	case "minio-enterprise", "mc-enterprise":
 		d = generateEnterpriseDownloadsJSON(semVerTag, *appName)
+	case "sidekick":
+		d = generateSidekickDownloadsJSON(semVerTag)
 	default:
 		d = generateDownloadsJSON(semVerTag, *appName)
 	}
