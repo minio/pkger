@@ -93,7 +93,8 @@ pkger -r $VERSION --appName warp
    - **JSON metadata**: `warp-release/downloads-warp.json` (contains download URLs and installation instructions)
 
 **Notes:**
-- Warp uses **semantic versioning** (e.g., `v0.4.3`), not date-based release tags like minio
+- Warp uses **semantic versioning** with a `v` prefix (e.g., `v0.4.3`), not date-based release tags like minio
+- The `v` prefix is **required** for input but is stripped in package filenames (e.g., `warp-0.4.3-1.x86_64.rpm`) following standard RPM/DEB conventions
 - Warp packages are built for `amd64` and `arm64` architectures only (no `ppc64le`)
 - The downloads JSON includes cross-platform support: **Linux** (Binary, RPM, DEB), **macOS** (Binary for arm64), **Windows** (Binary)
 - By default, all three package formats (RPM, DEB, APK) are built for Linux

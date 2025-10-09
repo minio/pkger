@@ -729,7 +729,18 @@ func main() {
 		d = generateSidekickDownloadsJSON(semVerTag)
 	case "warp":
 		// Warp uses semantic versioning (e.g., v0.4.3), not date-based releases
-		d = generateWarpDownloadsJSON(*release)
+		// Validate format: vX.Y.Z where X, Y, Z are numbers
+		if !strings.HasPrefix(*release, "v") {
+			kingpin.Fatalf("warp release version must start with 'v' (e.g., v0.4.3), got: %s", *release)
+		}
+		versionWithoutV := strings.TrimPrefix(*release, "v")
+		// Validate semantic version format X.Y.Z
+		semverPattern := regexp.MustCompile(`^\d+\.\d+\.\d+$`)
+		if !semverPattern.MatchString(versionWithoutV) {
+			kingpin.Fatalf("warp release version must follow semantic versioning vX.Y.Z (e.g., v0.4.3), got: %s", *release)
+		}
+		// Strip 'v' prefix for package naming conventions
+		d = generateWarpDownloadsJSON(versionWithoutV)
 	default:
 		d = generateDownloadsJSON(semVerTag, *appName)
 	}
