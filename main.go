@@ -709,7 +709,6 @@ func main() {
 		kingpin.Fatalf(err.Error())
 	}
 
-	semVerTag := semVerRelease(*release)
 	if !*noPackages {
 		if err := doPackage(*appName, *license, *release, *packager, *deps, *scriptsDir); err != nil {
 			if !*ignoreMissingArch {
@@ -724,8 +723,10 @@ func main() {
 	json := jsoniter.ConfigCompatibleWithStandardLibrary
 	switch *appName {
 	case "minio-enterprise", "mc-enterprise":
+		semVerTag := semVerRelease(*release)
 		d = generateEnterpriseDownloadsJSON(semVerTag, *appName)
 	case "sidekick":
+		semVerTag := semVerRelease(*release)
 		d = generateSidekickDownloadsJSON(semVerTag)
 	case "warp":
 		// Warp uses semantic versioning (e.g., v0.4.3), not date-based releases
@@ -742,6 +743,7 @@ func main() {
 		// Strip 'v' prefix for package naming conventions
 		d = generateWarpDownloadsJSON(versionWithoutV)
 	default:
+		semVerTag := semVerRelease(*release)
 		d = generateDownloadsJSON(semVerTag, *appName)
 	}
 
@@ -832,7 +834,15 @@ func doPackage(appName, license, release, packager, deps, scriptsDir string) err
 		return err
 	}
 
-	semVerTag := semVerRelease(release)
+	// Warp uses semantic versioning (vX.Y.Z), not date-based releases
+	// Strip 'v' prefix for package version field
+	var semVerTag string
+	if appName == "warp" {
+		semVerTag = strings.TrimPrefix(release, "v")
+	} else {
+		semVerTag = semVerRelease(release)
+	}
+
 	for _, arch := range []string{
 		"amd64",
 		"arm64",
