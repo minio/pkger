@@ -129,7 +129,6 @@ type downloadJSON struct {
 	Bin      *dlInfo `json:"Binary,omitempty"`
 	RPM      *dlInfo `json:"RPM,omitempty"`
 	Deb      *dlInfo `json:"DEB,omitempty"`
-	APK      *dlInfo `json:"APK,omitempty"`
 	Homebrew *dlInfo `json:"Homebrew,omitempty"`
 	HELM     *dlInfo `json:"HELM,omitempty"`
 	Kubectl  *dlInfo `json:"kubectl,omitempty"`
@@ -154,11 +153,6 @@ var rpmArchMap = map[string]string{
 }
 
 var debArchMap = map[string]string{
-	"amd64": "amd64",
-	"arm64": "arm64",
-}
-
-var apkArchMap = map[string]string{
 	"amd64": "amd64",
 	"arm64": "arm64",
 }
@@ -301,20 +295,11 @@ sudo dnf install sidekick-%s-1.%s.rpm`, arch, semVerTag, rpmArchMap[arch], semVe
 						Checksum: fmt.Sprintf("https://dl.min.io/aistor/sidekick/release/linux-%s/sidekick_%s_%s.deb.sha256sum", arch, semVerTag, debArchMap[arch]),
 						Text: fmt.Sprintf(`# Download the DEB package
 wget https://dl.min.io/aistor/sidekick/release/linux-%s/sidekick_%s_%s.deb
-						
+
 # Install with apt
 sudo apt install ./sidekick_%s_%s.deb
 # or
 sudo dpkg -i sidekick_%s_%s.deb`, arch, semVerTag, debArchMap[arch], semVerTag, debArchMap[arch], semVerTag, debArchMap[arch]),
-					},
-					APK: &dlInfo{
-						Download: fmt.Sprintf("https://dl.min.io/aistor/sidekick/release/linux-%s/sidekick_%s_%s.apk", arch, semVerTag, debArchMap[arch]),
-						Checksum: fmt.Sprintf("https://dl.min.io/aistor/sidekick/release/linux-%s/sidekick_%s_%s.apk.sha256sum", arch, semVerTag, debArchMap[arch]),
-						Text: fmt.Sprintf(`# Download the APK package
-wget https://dl.min.io/aistor/sidekick/release/linux-%s/sidekick_%s_%s.apk
-
-# Install with apk
-sudo apk add --allow-untrusted sidekick_%s_%s.apk`, arch, semVerTag, apkArchMap[arch], semVerTag, apkArchMap[arch]),
 					},
 				}
 
