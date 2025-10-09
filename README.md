@@ -1,102 +1,59 @@
 ## pkger
 
-## Packaging minio during development (for testing, etc)
+pkger is a packaging tool for MinIO projects that generates DEB, RPM, and APK packages along with download metadata JSON files consumed by min.io/download.
 
-1. First install pkger so it is available in PATH.
+## Packaging minio during development
 
-2. Prepare the release directory, `dist` below:
+For testing minio packages during development, first install pkger so it's available in your PATH. Then prepare a release directory (such as `dist`) with architecture-specific subdirectories. For example, create `./dist/linux-amd64` and move your compiled minio binary there, renaming it to include the release version like `minio.RELEASE.2025-03-12T00-00-00Z.debug.GIT_TAG`. Make sure to replace the timestamp and git tag with your actual values.
+
+You'll also need the minio.service systemd file, which you can download from the minio-service repository:
 
 ```shell
-mkdir -p ./dist/linux-amd64
-
-# REPLACE THE TIMESTAMP AND THE GIT TAG!
-VERSION=RELEASE.2025-03-12T00-00-00Z.debug.GIT_TAG
-
-# Move the binary to the dist directory
-mv ./minio ./dist/linux-amd64/minio.$VERSION
-```
-
-3. Ensure minio.service exists:
-
-```
 wget -O minio.service "https://raw.githubusercontent.com/minio/minio-service/refs/heads/master/linux-systemd/minio.service"
 ```
 
-4. Run pkger:
+Then run pkger with the release version, specifying minio as the app name and using the `--ignore` flag to continue even if some architectures are missing:
 
 ```shell
-pkger -r $VERSION --appName minio --ignore --releaseDir=dist
+pkger -r RELEASE.2025-03-12T00-00-00Z.debug.GIT_TAG --appName minio --ignore --releaseDir=dist
 ```
 
-5. `./dist` will contain the packaged files (rpm, deb, etc).
+The packaged files (rpm, deb, apk) along with the downloads JSON metadata will be generated in the `./dist` directory.
 
 ## Packaging sidekick releases
 
-1. First install pkger so it is available in PATH.
-
-2. Prepare the release directory:
+Sidekick releases follow a similar workflow. Create the release directory structure with subdirectories for each supported architecture (amd64 and arm64 only). Place your compiled sidekick binaries in these directories with the release version appended to the filename. Note that sidekick only supports amd64 and arm64 architectures—ppc64le is not included.
 
 ```shell
-mkdir -p ./sidekick-release/linux-amd64
-mkdir -p ./sidekick-release/linux-arm64
-
-# REPLACE THE TIMESTAMP!
-VERSION=RELEASE.2025-03-12T00-00-00Z
-
-# Move the binaries to the release directory
-mv ./sidekick-linux-amd64 ./sidekick-release/linux-amd64/sidekick.$VERSION
-mv ./sidekick-linux-arm64 ./sidekick-release/linux-arm64/sidekick.$VERSION
+mkdir -p ./sidekick-release/linux-amd64 ./sidekick-release/linux-arm64
+mv ./sidekick-linux-amd64 ./sidekick-release/linux-amd64/sidekick.RELEASE.2025-03-12T00-00-00Z
+mv ./sidekick-linux-arm64 ./sidekick-release/linux-arm64/sidekick.RELEASE.2025-03-12T00-00-00Z
 ```
 
-3. Run pkger:
+Run pkger with the sidekick app name. By default, it builds all three package formats (RPM, DEB, APK), though you can limit this with the `--packager` flag:
 
 ```shell
-pkger -r $VERSION --appName sidekick
+pkger -r RELEASE.2025-03-12T00-00-00Z --appName sidekick
 ```
 
-4. The output will be:
-   - **Packages**: `sidekick-release/linux-{arch}/sidekick-*.rpm`, `sidekick-*.deb`, `sidekick-*.apk`
-   - **JSON metadata**: `sidekick-release/downloads-sidekick.json` (contains download URLs and installation instructions)
-
-**Notes:**
-- Sidekick packages are built for `amd64` and `arm64` architectures only (no `ppc64le`)
-- By default, all three package formats (RPM, DEB, APK) are built
-- Use `--packager` flag to build specific formats: `--packager deb,rpm`
-- The downloads JSON includes only RPM and DEB installation instructions (APK is built but not documented)
+The generated packages will appear in the architecture-specific directories along with `downloads-sidekick.json`, which contains download URLs and installation instructions. Note that while APK packages are built, only RPM and DEB installation instructions are included in the JSON metadata.
 
 ## Packaging warp releases
 
-1. First install pkger so it is available in PATH.
+Warp uses semantic versioning (e.g., v0.4.3) instead of date-based release tags. The version must include the `v` prefix when you run pkger, but this prefix is automatically stripped in the generated package filenames to follow standard RPM and DEB naming conventions.
 
-2. Prepare the release directory:
-
-```shell
-mkdir -p ./warp-release/linux-amd64
-mkdir -p ./warp-release/linux-arm64
-
-# REPLACE THE VERSION! Warp uses semantic versioning (e.g., v0.4.3)
-VERSION=v0.4.3
-
-# Move the binaries to the release directory
-mv ./warp-linux-amd64 ./warp-release/linux-amd64/warp.$VERSION
-mv ./warp-linux-arm64 ./warp-release/linux-arm64/warp.$VERSION
-```
-
-3. Run pkger:
+Set up the release directories for amd64 and arm64 (warp doesn't support ppc64le):
 
 ```shell
-pkger -r $VERSION --appName warp
+mkdir -p ./warp-release/linux-amd64 ./warp-release/linux-arm64
+mv ./warp-linux-amd64 ./warp-release/linux-amd64/warp.v0.4.3
+mv ./warp-linux-arm64 ./warp-release/linux-arm64/warp.v0.4.3
 ```
 
-4. The output will be:
-   - **Packages**: `warp-release/linux-{arch}/warp-*.rpm`, `warp-*.deb`, `warp-*.apk`
-   - **JSON metadata**: `warp-release/downloads-warp.json` (contains download URLs and installation instructions)
+Run pkger with the semantic version. The version must start with `v` and follow the X.Y.Z format:
 
-**Notes:**
-- Warp uses **semantic versioning** with a `v` prefix (e.g., `v0.4.3`), not date-based release tags like minio
-- The `v` prefix is **required** for input but is stripped in package filenames (e.g., `warp-0.4.3-1.x86_64.rpm`) following standard RPM/DEB conventions
-- Warp packages are built for `amd64` and `arm64` architectures only (no `ppc64le`)
-- The downloads JSON includes cross-platform support: **Linux** (Binary, RPM, DEB), **macOS** (Binary for arm64), **Windows** (Binary)
-- By default, all three package formats (RPM, DEB, APK) are built for Linux
-- Use `--packager` flag to build specific formats: `--packager deb,rpm`
-- The downloads JSON includes only RPM and DEB installation instructions (APK is built but not documented)
+```shell
+pkger -r v0.4.3 --appName warp
+```
+
+The output includes Linux packages (RPM, DEB, APK) in the architecture directories, along with `downloads-warp.json`. This JSON file includes cross-platform download information for Linux (binary, RPM, DEB), macOS (arm64 binary only), and Windows (amd64 binary). Like sidekick, APK packages are built for Linux but only RPM and DEB installation instructions are documented in the JSON.
