@@ -833,6 +833,12 @@ func doPackage(appName, license, release, packager, deps, scriptsDir string) err
 		if appName == "mc-enterprise" && arch != "amd64" && arch != "arm64" {
 			continue
 		}
+		if appName == "sidekick" && arch != "amd64" && arch != "arm64" {
+			continue
+		}
+		if appName == "warp" && arch != "amd64" && arch != "arm64" {
+			continue
+		}
 
 		var buf bytes.Buffer
 		err = mtmpl.Execute(&buf, releaseTmpl{
