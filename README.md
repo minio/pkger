@@ -63,3 +63,39 @@ pkger -r $VERSION --appName sidekick
 - By default, all three package formats (RPM, DEB, APK) are built
 - Use `--packager` flag to build specific formats: `--packager deb,rpm`
 - The downloads JSON includes only RPM and DEB installation instructions (APK is built but not documented)
+
+## Packaging warp releases
+
+1. First install pkger so it is available in PATH.
+
+2. Prepare the release directory:
+
+```shell
+mkdir -p ./warp-release/linux-amd64
+mkdir -p ./warp-release/linux-arm64
+
+# REPLACE THE VERSION! Warp uses semantic versioning (e.g., v0.4.3)
+VERSION=v0.4.3
+
+# Move the binaries to the release directory
+mv ./warp-linux-amd64 ./warp-release/linux-amd64/warp.$VERSION
+mv ./warp-linux-arm64 ./warp-release/linux-arm64/warp.$VERSION
+```
+
+3. Run pkger:
+
+```shell
+pkger -r $VERSION --appName warp
+```
+
+4. The output will be:
+   - **Packages**: `warp-release/linux-{arch}/warp-*.rpm`, `warp-*.deb`, `warp-*.apk`
+   - **JSON metadata**: `warp-release/downloads-warp.json` (contains download URLs and installation instructions)
+
+**Notes:**
+- Warp uses **semantic versioning** (e.g., `v0.4.3`), not date-based release tags like minio
+- Warp packages are built for `amd64` and `arm64` architectures only (no `ppc64le`)
+- The downloads JSON includes cross-platform support: **Linux** (Binary, RPM, DEB), **macOS** (Binary for arm64), **Windows** (Binary)
+- By default, all three package formats (RPM, DEB, APK) are built for Linux
+- Use `--packager` flag to build specific formats: `--packager deb,rpm`
+- The downloads JSON includes only RPM and DEB installation instructions (APK is built but not documented)

@@ -627,6 +627,66 @@ sudo dpkg -i sidekick_%s_%s.deb`, arch, semVerTag, debArchMap[arch], semVerTag, 
 	return d
 }
 
+func generateWarpDownloadsJSON(version string) downloadsJSON {
+	d := downloadsJSON{
+		Linux:   make(map[string]map[string]downloadJSON),
+		MacOS:   make(map[string]map[string]downloadJSON),
+		Windows: make(map[string]map[string]downloadJSON),
+	}
+
+	d.Linux["Warp"] = map[string]downloadJSON{}
+	d.MacOS["Warp"] = map[string]downloadJSON{}
+	d.Windows["Warp"] = map[string]downloadJSON{}
+
+	// Linux: amd64 and arm64
+	for _, arch := range []string{"amd64", "arm64"} {
+		d.Linux["Warp"][arch] = downloadJSON{
+			Bin: &dlInfo{
+				Download: fmt.Sprintf("https://dl.min.io/aistor/warp/release/linux-%s/warp", arch),
+				Text: fmt.Sprintf(`wget https://dl.min.io/aistor/warp/release/linux-%s/warp -O warp
+chmod +x warp
+sudo mv warp /usr/local/bin/`, arch),
+				Checksum: fmt.Sprintf("https://dl.min.io/aistor/warp/release/linux-%s/warp.sha256sum", arch),
+			},
+			RPM: &dlInfo{
+				Download: fmt.Sprintf("https://dl.min.io/aistor/warp/release/linux-%s/warp-%s-1.%s.rpm", arch, version, rpmArchMap[arch]),
+				Checksum: fmt.Sprintf("https://dl.min.io/aistor/warp/release/linux-%s/warp-%s-1.%s.rpm.sha256sum", arch, version, rpmArchMap[arch]),
+				Text: fmt.Sprintf(`wget https://dl.min.io/aistor/warp/release/linux-%s/warp-%s-1.%s.rpm
+sudo rpm -ivh warp-%s-1.%s.rpm`, arch, version, rpmArchMap[arch], version, rpmArchMap[arch]),
+			},
+			Deb: &dlInfo{
+				Download: fmt.Sprintf("https://dl.min.io/aistor/warp/release/linux-%s/warp_%s_%s.deb", arch, version, debArchMap[arch]),
+				Checksum: fmt.Sprintf("https://dl.min.io/aistor/warp/release/linux-%s/warp_%s_%s.deb.sha256sum", arch, version, debArchMap[arch]),
+				Text: fmt.Sprintf(`wget https://dl.min.io/aistor/warp/release/linux-%s/warp_%s_%s.deb
+sudo dpkg -i warp_%s_%s.deb`, arch, version, debArchMap[arch], version, debArchMap[arch]),
+			},
+		}
+	}
+
+	// macOS: arm64 only
+	d.MacOS["Warp"]["arm64"] = downloadJSON{
+		Bin: &dlInfo{
+			Download: "https://dl.min.io/aistor/warp/release/darwin-arm64/warp",
+			Text: `wget https://dl.min.io/aistor/warp/release/darwin-arm64/warp -O warp
+chmod +x warp
+sudo mv warp /usr/local/bin/`,
+			Checksum: "https://dl.min.io/aistor/warp/release/darwin-arm64/warp.sha256sum",
+		},
+	}
+
+	// Windows: amd64 only
+	d.Windows["Warp"]["amd64"] = downloadJSON{
+		Bin: &dlInfo{
+			Download: "https://dl.min.io/aistor/warp/release/windows-amd64/warp.exe",
+			Text: `# Download from https://dl.min.io/aistor/warp/release/windows-amd64/warp.exe
+# Add to PATH or run directly`,
+			Checksum: "https://dl.min.io/aistor/warp/release/windows-amd64/warp.exe.sha256sum",
+		},
+	}
+
+	return d
+}
+
 func releaseDirName() string {
 	if *releaseDir != "" {
 		return *releaseDir
@@ -667,6 +727,9 @@ func main() {
 		d = generateEnterpriseDownloadsJSON(semVerTag, *appName)
 	case "sidekick":
 		d = generateSidekickDownloadsJSON(semVerTag)
+	case "warp":
+		// Warp uses semantic versioning (e.g., v0.4.3), not date-based releases
+		d = generateWarpDownloadsJSON(*release)
 	default:
 		d = generateDownloadsJSON(semVerTag, *appName)
 	}
