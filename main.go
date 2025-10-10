@@ -538,11 +538,13 @@ mc.exe --version`, winArch),
 func generateSidekickDownloadsJSON(semVerTag, releaseTag string) downloadsJSON {
 	d := downloadsJSON{
 		Linux:      make(map[string]map[string]downloadJSON),
+		Windows:    make(map[string]map[string]downloadJSON),
 		Kubernetes: make(map[string]map[string]downloadJSON),
 		Docker:     make(map[string]map[string]downloadJSON),
 	}
 
 	d.Linux["MinIO Sidekick"] = map[string]downloadJSON{}
+	d.Windows["MinIO Sidekick"] = map[string]downloadJSON{}
 	d.Kubernetes["MinIO Sidekick"] = map[string]downloadJSON{}
 	d.Docker["MinIO Sidekick"] = map[string]downloadJSON{}
 
@@ -583,6 +585,16 @@ sudo apt install ./sidekick_%s_%s.deb
 sudo dpkg -i sidekick_%s_%s.deb`, arch, semVerTag, debArchMap[arch], semVerTag, debArchMap[arch], semVerTag, debArchMap[arch]),
 			},
 		}
+	}
+
+	// Windows: amd64 only
+	d.Windows["MinIO Sidekick"]["amd64"] = downloadJSON{
+		Bin: &dlInfo{
+			Download: "https://dl.min.io/aistor/sidekick/release/windows-amd64/sidekick.exe",
+			Text: `# Download from https://dl.min.io/aistor/sidekick/release/windows-amd64/sidekick.exe
+# Add to PATH or run directly`,
+			Checksum: "https://dl.min.io/aistor/sidekick/release/windows-amd64/sidekick.exe.sha256sum",
+		},
 	}
 
 	return d

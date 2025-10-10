@@ -199,15 +199,15 @@ func TestGenerateSidekickDownloadsJSON(t *testing.T) {
 
 	result := generateSidekickDownloadsJSON(semVerTag, releaseTag)
 
-	// Verify only Linux support
+	// Verify Linux and Windows support, but not MacOS
 	if result.MacOS != nil {
 		t.Error("Sidekick should not have MacOS support")
 	}
-	if result.Windows != nil {
-		t.Error("Sidekick should not have Windows support")
+	if result.Windows == nil {
+		t.Error("Sidekick should have Windows support")
 	}
 
-	// Verify only amd64 and arm64
+	// Verify only amd64 and arm64 for Linux
 	if _, ok := result.Linux["MinIO Sidekick"]["amd64"]; !ok {
 		t.Error("amd64 architecture missing")
 	}
@@ -218,16 +218,31 @@ func TestGenerateSidekickDownloadsJSON(t *testing.T) {
 		t.Error("ppc64le should not be supported for sidekick")
 	}
 
-	// Verify no binary downloads, only packages
+	// Verify no binary downloads on Linux, only packages
 	linuxData := result.Linux["MinIO Sidekick"]["amd64"]
 	if linuxData.Bin != nil {
-		t.Error("Sidekick should not have binary downloads")
+		t.Error("Sidekick should not have binary downloads on Linux")
 	}
 	if linuxData.RPM == nil {
 		t.Error("Sidekick should have RPM packages")
 	}
 	if linuxData.Deb == nil {
 		t.Error("Sidekick should have DEB packages")
+	}
+
+	// Verify Windows amd64 binary download
+	if _, ok := result.Windows["MinIO Sidekick"]["amd64"]; !ok {
+		t.Error("Windows amd64 architecture missing")
+	}
+	windowsData := result.Windows["MinIO Sidekick"]["amd64"]
+	if windowsData.Bin == nil {
+		t.Error("Sidekick should have binary download for Windows")
+	}
+	if windowsData.Bin.Download != "https://dl.min.io/aistor/sidekick/release/windows-amd64/sidekick.exe" {
+		t.Errorf("Incorrect Windows download URL: %s", windowsData.Bin.Download)
+	}
+	if windowsData.Bin.Checksum != "https://dl.min.io/aistor/sidekick/release/windows-amd64/sidekick.exe.sha256sum" {
+		t.Errorf("Incorrect Windows checksum URL: %s", windowsData.Bin.Checksum)
 	}
 }
 
