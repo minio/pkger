@@ -41,7 +41,17 @@ func TestSemVerRelease(t *testing.T) {
 			expected:   "20250312000000.0.0.hotfix.1",
 		},
 		{
-			name:        "Invalid format - no RELEASE prefix",
+			name:       "EDGE release tag",
+			releaseTag: "EDGE.2025-10-10T05-28-23Z",
+			expected:   "20251010052823.0.0",
+		},
+		{
+			name:       "EDGE release with hotfix",
+			releaseTag: "EDGE.2025-10-10T05-28-23Z.hotfix.2",
+			expected:   "20251010052823.0.0.hotfix.2",
+		},
+		{
+			name:        "Invalid format - no RELEASE/EDGE prefix",
 			releaseTag:  "2025-03-12T00-00-00Z",
 			expectPanic: true,
 		},

@@ -698,6 +698,14 @@ func main() {
 		kingpin.Fatalf(err.Error())
 	}
 
+	// Validate EDGE tag usage - bidirectional check
+	if strings.HasPrefix(*release, "EDGE.") && !*edge {
+		kingpin.Fatalf("EDGE-prefixed release tags require --edge flag: %s", *release)
+	}
+	if *edge && strings.HasPrefix(*release, "RELEASE.") {
+		kingpin.Fatalf("--edge flag requires EDGE-prefixed release tag, got: %s", *release)
+	}
+
 	// Skip package building for warp (uses goreleaser) - only generate JSON
 	if !*noPackages && *appName != "warp" {
 		if err := doPackage(*appName, *license, *release, *packager, *deps, *scriptsDir); err != nil {
@@ -782,7 +790,7 @@ func releaseTagToReleaseTime(releaseTag string) (releaseTime time.Time, fields [
 	if len(fields) < 2 || len(fields) > 4 {
 		return releaseTime, nil, fmt.Errorf("%s is not a valid release tag", releaseTag)
 	}
-	if fields[0] != "RELEASE" {
+	if fields[0] != "RELEASE" && fields[0] != "EDGE" {
 		return releaseTime, nil, fmt.Errorf("%s is not a valid release tag", releaseTag)
 	}
 	releaseTime, err = time.Parse(minioReleaseTagTimeLayout, fields[1])
