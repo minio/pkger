@@ -573,13 +573,15 @@ chmod +x sidekick
 				Download: fmt.Sprintf("https://dl.min.io/aistor/sidekick/release/linux-%s/sidekick-%s-1.%s.rpm", arch, semVerTag, rpmArchMap[arch]),
 				Checksum: fmt.Sprintf("https://dl.min.io/aistor/sidekick/release/linux-%s/sidekick-%s-1.%s.rpm.sha256sum", arch, semVerTag, rpmArchMap[arch]),
 				Text: fmt.Sprintf(`wget https://dl.min.io/aistor/sidekick/release/linux-%s/sidekick-%s-1.%s.rpm
-sudo dnf install sidekick-%s-1.%s.rpm`, arch, semVerTag, rpmArchMap[arch], semVerTag, rpmArchMap[arch], semVerTag, rpmArchMap[arch]),
+sudo dnf install sidekick-%s-1.%s.rpm
+sidekick --version`, arch, semVerTag, rpmArchMap[arch], semVerTag, rpmArchMap[arch]),
 			},
 			Deb: &dlInfo{
 				Download: fmt.Sprintf("https://dl.min.io/aistor/sidekick/release/linux-%s/sidekick_%s_%s.deb", arch, semVerTag, debArchMap[arch]),
 				Checksum: fmt.Sprintf("https://dl.min.io/aistor/sidekick/release/linux-%s/sidekick_%s_%s.deb.sha256sum", arch, semVerTag, debArchMap[arch]),
 				Text: fmt.Sprintf(`wget https://dl.min.io/aistor/sidekick/release/linux-%s/sidekick_%s_%s.deb
-sudo dpkg -i sidekick_%s_%s.deb`, arch, semVerTag, debArchMap[arch], semVerTag, debArchMap[arch], semVerTag, debArchMap[arch]),
+sudo dpkg -i sidekick_%s_%s.deb
+sidekick --version`, arch, semVerTag, debArchMap[arch], semVerTag, debArchMap[arch]),
 			},
 		}
 	}
@@ -588,8 +590,8 @@ sudo dpkg -i sidekick_%s_%s.deb`, arch, semVerTag, debArchMap[arch], semVerTag, 
 	d.Windows["MinIO Sidekick"]["amd64"] = downloadJSON{
 		Bin: &dlInfo{
 			Download: "https://dl.min.io/aistor/sidekick/release/windows-amd64/sidekick.exe",
-			Text: `# Download from https://dl.min.io/aistor/sidekick/release/windows-amd64/sidekick.exe
-# Add to PATH or run directly`,
+			Text: `Invoke-WebRequest -Uri "https://dl.min.io/aistor/sidekick/release/windows-amd64/sidekick.exe" -OutFile "sidekick.exe"
+sidekick.exe --version`,
 			Checksum: "https://dl.min.io/aistor/sidekick/release/windows-amd64/sidekick.exe.sha256sum",
 		},
 	}
@@ -664,8 +666,8 @@ sudo mv warp /usr/local/bin/`,
 	d.Windows["MinIO Warp"]["amd64"] = downloadJSON{
 		Bin: &dlInfo{
 			Download: "https://dl.min.io/aistor/warp/release/windows-amd64/warp.exe",
-			Text: `# Download from https://dl.min.io/aistor/warp/release/windows-amd64/warp.exe
-# Add to PATH or run directly`,
+			Text: `Invoke-WebRequest -Uri "https://dl.min.io/aistor/warp/release/windows-amd64/warp.exe" -OutFile "warp.exe"
+warp.exe --version`,
 			Checksum: "https://dl.min.io/aistor/warp/release/windows-amd64/warp.exe.sha256sum",
 		},
 	}
