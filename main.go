@@ -572,23 +572,13 @@ chmod +x sidekick
 			RPM: &dlInfo{
 				Download: fmt.Sprintf("https://dl.min.io/aistor/sidekick/release/linux-%s/sidekick-%s-1.%s.rpm", arch, semVerTag, rpmArchMap[arch]),
 				Checksum: fmt.Sprintf("https://dl.min.io/aistor/sidekick/release/linux-%s/sidekick-%s-1.%s.rpm.sha256sum", arch, semVerTag, rpmArchMap[arch]),
-				Text: fmt.Sprintf(`# Download the RPM package
-wget https://dl.min.io/aistor/sidekick/release/linux-%s/sidekick-%s-1.%s.rpm
-
-# Install with yum/dnf
-sudo yum install sidekick-%s-1.%s.rpm
-# or
+				Text: fmt.Sprintf(`wget https://dl.min.io/aistor/sidekick/release/linux-%s/sidekick-%s-1.%s.rpm
 sudo dnf install sidekick-%s-1.%s.rpm`, arch, semVerTag, rpmArchMap[arch], semVerTag, rpmArchMap[arch], semVerTag, rpmArchMap[arch]),
 			},
 			Deb: &dlInfo{
 				Download: fmt.Sprintf("https://dl.min.io/aistor/sidekick/release/linux-%s/sidekick_%s_%s.deb", arch, semVerTag, debArchMap[arch]),
 				Checksum: fmt.Sprintf("https://dl.min.io/aistor/sidekick/release/linux-%s/sidekick_%s_%s.deb.sha256sum", arch, semVerTag, debArchMap[arch]),
-				Text: fmt.Sprintf(`# Download the DEB package
-wget https://dl.min.io/aistor/sidekick/release/linux-%s/sidekick_%s_%s.deb
-
-# Install with apt
-sudo apt install ./sidekick_%s_%s.deb
-# or
+				Text: fmt.Sprintf(`wget https://dl.min.io/aistor/sidekick/release/linux-%s/sidekick_%s_%s.deb
 sudo dpkg -i sidekick_%s_%s.deb`, arch, semVerTag, debArchMap[arch], semVerTag, debArchMap[arch], semVerTag, debArchMap[arch]),
 			},
 		}
