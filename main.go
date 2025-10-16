@@ -562,6 +562,13 @@ podman run --name my-sidekick -it --rm quay.io/minio/aistor/sidekick:%s --versio
 			},
 		}
 		d.Linux["MinIO Sidekick"][arch] = downloadJSON{
+			Bin: &dlInfo{
+				Download: fmt.Sprintf("https://dl.min.io/aistor/sidekick/release/linux-%s/sidekick", arch),
+				Text: fmt.Sprintf(`wget https://dl.min.io/aistor/sidekick/release/linux-%s/sidekick
+chmod +x sidekick
+./sidekick --version`, arch),
+				Checksum: fmt.Sprintf("https://dl.min.io/aistor/sidekick/release/linux-%s/sidekick.sha256sum", arch),
+			},
 			RPM: &dlInfo{
 				Download: fmt.Sprintf("https://dl.min.io/aistor/sidekick/release/linux-%s/sidekick-%s-1.%s.rpm", arch, semVerTag, rpmArchMap[arch]),
 				Checksum: fmt.Sprintf("https://dl.min.io/aistor/sidekick/release/linux-%s/sidekick-%s-1.%s.rpm.sha256sum", arch, semVerTag, rpmArchMap[arch]),

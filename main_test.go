@@ -228,10 +228,18 @@ func TestGenerateSidekickDownloadsJSON(t *testing.T) {
 		t.Error("ppc64le should not be supported for sidekick")
 	}
 
-	// Verify no binary downloads on Linux, only packages
+	// Verify binary downloads and packages on Linux
 	linuxData := result.Linux["MinIO Sidekick"]["amd64"]
+	if linuxData.Bin == nil {
+		t.Error("Sidekick should have binary downloads on Linux")
+	}
 	if linuxData.Bin != nil {
-		t.Error("Sidekick should not have binary downloads on Linux")
+		if linuxData.Bin.Download != "https://dl.min.io/aistor/sidekick/release/linux-amd64/sidekick" {
+			t.Errorf("Incorrect Linux binary download URL: %s", linuxData.Bin.Download)
+		}
+		if linuxData.Bin.Checksum != "https://dl.min.io/aistor/sidekick/release/linux-amd64/sidekick.sha256sum" {
+			t.Errorf("Incorrect Linux binary checksum URL: %s", linuxData.Bin.Checksum)
+		}
 	}
 	if linuxData.RPM == nil {
 		t.Error("Sidekick should have RPM packages")
