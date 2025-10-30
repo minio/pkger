@@ -230,14 +230,14 @@ chmod +x mc
 						Download: fmt.Sprintf("https://dl.min.io/aistor/mc/%s/linux-%s/mcli-%s-1.%s.rpm", pathSegment, arch, semVerTag, rpmArchMap[arch]),
 						Checksum: fmt.Sprintf("https://dl.min.io/aistor/mc/%s/linux-%s/mcli-%s-1.%s.rpm.sha256sum", pathSegment, arch, semVerTag, rpmArchMap[arch]),
 						Text: fmt.Sprintf(`dnf install https://dl.min.io/aistor/mc/%s/linux-%s/mcli-%s-1.%s.rpm
-mc --version`, pathSegment, arch, semVerTag, rpmArchMap[arch]),
+mcli --version`, pathSegment, arch, semVerTag, rpmArchMap[arch]),
 					},
 					Deb: &dlInfo{
 						Download: fmt.Sprintf("https://dl.min.io/aistor/mc/%s/linux-%s/mcli_%s_%s.deb", pathSegment, arch, semVerTag, debArchMap[arch]),
 						Checksum: fmt.Sprintf("https://dl.min.io/aistor/mc/%s/linux-%s/mcli_%s_%s.deb.sha256sum", pathSegment, arch, semVerTag, debArchMap[arch]),
 						Text: fmt.Sprintf(`wget https://dl.min.io/aistor/mc/%s/linux-%s/mcli_%s_%s.deb
 dpkg -i mcli_%s_%s.deb
-mc --version`, pathSegment, arch, semVerTag, debArchMap[arch], semVerTag, debArchMap[arch]),
+mcli --version`, pathSegment, arch, semVerTag, debArchMap[arch], semVerTag, debArchMap[arch]),
 					},
 				}
 
@@ -458,14 +458,14 @@ chmod +x mc
 					Download: fmt.Sprintf("https://dl.min.io/client/mc/release/linux-%s/mcli-%s-1.%s.rpm", linuxArch, semVerTag, rpmArchMap[linuxArch]),
 					Checksum: fmt.Sprintf("https://dl.min.io/client/mc/release/linux-%s/mcli-%s-1.%s.rpm.sha256sum", linuxArch, semVerTag, rpmArchMap[linuxArch]),
 					Text: fmt.Sprintf(`dnf install https://dl.min.io/client/mc/release/linux-%s/mcli-%s-1.%s.rpm
-mc --version`, linuxArch, semVerTag, rpmArchMap[linuxArch]),
+mcli --version`, linuxArch, semVerTag, rpmArchMap[linuxArch]),
 				},
 				Deb: &dlInfo{
 					Download: fmt.Sprintf("https://dl.min.io/client/mc/release/linux-%s/mcli_%s_%s.deb", linuxArch, semVerTag, debArchMap[linuxArch]),
 					Checksum: fmt.Sprintf("https://dl.min.io/client/mc/release/linux-%s/mcli_%s_%s.deb.sha256sum", linuxArch, semVerTag, debArchMap[linuxArch]),
 					Text: fmt.Sprintf(`wget https://dl.min.io/client/mc/release/linux-%s/mcli_%s_%s.deb
 dpkg -i mcli_%s_%s.deb
-mc --version`, linuxArch, semVerTag, debArchMap[linuxArch], semVerTag, debArchMap[linuxArch]),
+mcli --version`, linuxArch, semVerTag, debArchMap[linuxArch], semVerTag, debArchMap[linuxArch]),
 				},
 			}
 		}
