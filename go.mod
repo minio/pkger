@@ -1,4 +1,4 @@
-module github.com/minio/pkger
+module github.com/minio/pkger/v2
 
 go 1.25
 
