@@ -44,8 +44,9 @@ import (
 
 // nolint: gochecknoglobals
 var (
-	// version is set via ldflags at build time, or read from Go module info
-	version        = ""
+	version        = "dev"
+	commitID       = ""
+	dirty          = false
 	releaseMatcher = regexp.MustCompile(`[0-9]`)
 
 	app     = kingpin.New("pkger", "Debian, RPMs and APKs for MinIO")
@@ -98,14 +99,39 @@ var (
 )
 
 func init() {
-	// If version not set via ldflags, try to get it from Go module build info
-	if version == "" {
-		if info, ok := debug.ReadBuildInfo(); ok && info.Main.Version != "" {
+	if info, ok := debug.ReadBuildInfo(); ok {
+		// Get version from module info
+		if info.Main.Version != "" && info.Main.Version != "(devel)" {
 			version = info.Main.Version
-		} else {
-			version = "dev"
+		}
+		// Get VCS info (commit, dirty status)
+		for _, setting := range info.Settings {
+			switch setting.Key {
+			case "vcs.revision":
+				commitID = setting.Value
+			case "vcs.modified":
+				dirty = setting.Value == "true"
+			}
 		}
 	}
+}
+
+func getVersionString() string {
+	v := version
+	// Only add commit ID if not already in version string (pseudo-versions include it)
+	if commitID != "" && !strings.Contains(v, commitID[:12]) {
+		// Use short commit ID (first 12 chars)
+		short := commitID
+		if len(short) > 12 {
+			short = short[:12]
+		}
+		v += " (" + short + ")"
+	}
+	// Only add dirty if not already in version string
+	if dirty && !strings.Contains(v, "dirty") {
+		v += " dirty"
+	}
+	return v
 }
 
 const tmpl = `name: "{{ .App }}"
@@ -708,7 +734,7 @@ func releaseDirName() string {
 }
 
 func main() {
-	app.Version(version)
+	app.Version(getVersionString())
 	app.VersionFlag.Short('v')
 	app.HelpFlag.Short('h')
 	if _, err := app.Parse(os.Args[1:]); err != nil {
