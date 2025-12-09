@@ -88,6 +88,11 @@ var (
 		Default("false").
 		Short('e').
 		Bool()
+
+	noJSON = app.Flag("no-json", "Skip JSON metadata file generation").
+		Default("false").
+		Short('j').
+		Bool()
 )
 
 const tmpl = `name: "{{ .App }}"
@@ -714,6 +719,12 @@ func main() {
 				kingpin.Errorf(err.Error())
 			}
 		}
+	}
+
+	// Skip JSON generation if --no-json flag is set
+	if *noJSON {
+		fmt.Println("Skipping JSON metadata generation (--no-json)")
+		return
 	}
 
 	var d any
