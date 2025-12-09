@@ -27,6 +27,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime/debug"
 	"strings"
 	"text/template"
 	"time"
@@ -43,7 +44,8 @@ import (
 
 // nolint: gochecknoglobals
 var (
-	version        = "v1.0"
+	// version is set via ldflags at build time, or read from Go module info
+	version        = ""
 	releaseMatcher = regexp.MustCompile(`[0-9]`)
 
 	app     = kingpin.New("pkger", "Debian, RPMs and APKs for MinIO")
@@ -94,6 +96,17 @@ var (
 		Short('j').
 		Bool()
 )
+
+func init() {
+	// If version not set via ldflags, try to get it from Go module build info
+	if version == "" {
+		if info, ok := debug.ReadBuildInfo(); ok && info.Main.Version != "" {
+			version = info.Main.Version
+		} else {
+			version = "dev"
+		}
+	}
+}
 
 const tmpl = `name: "{{ .App }}"
 arch: "{{ .Arch }}"
