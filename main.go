@@ -289,6 +289,7 @@ mcli --version`, pathSegment, arch, semVerTag, debArchMap[arch], semVerTag, debA
 					Podman: &dlInfo{
 						Text: fmt.Sprintf(`podman pull quay.io/minio/aistor/mc:%s
 podman run --name my-mc --hostname my-mc -it --entrypoint /bin/bash --rm minio/mc
+quay.io/minio/aistor/mc
 mc --version`, releaseTag),
 					},
 				}
