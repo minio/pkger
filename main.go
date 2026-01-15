@@ -750,8 +750,7 @@ func main() {
 		kingpin.Fatalf("--edge flag requires EDGE-prefixed release tag, got: %s", *release)
 	}
 
-	// Skip package building for warp (uses goreleaser) - only generate JSON
-	if !*noPackages && *appName != "warp" {
+	if !*noPackages {
 		if err := doPackage(*appName, *license, *release, *packager, *deps, *scriptsDir); err != nil {
 			if !*ignoreMissingArch {
 				kingpin.Fatalf(err.Error())
