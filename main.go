@@ -96,7 +96,29 @@ var (
 		Default("false").
 		Short('j').
 		Bool()
+
+	contentsFile = app.Flag("contents", "YAML file with additional nfpm content entries (src/dst/type), supports ${ARCH} expansion").
+			Short('c').
+			String()
 )
+
+type extraContent struct {
+	Src  string `yaml:"src"`
+	Dst  string `yaml:"dst"`
+	Type string `yaml:"type,omitempty"`
+}
+
+func parseContentsFile(path string) ([]extraContent, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var contents []extraContent
+	if err := yaml.Unmarshal(data, &contents); err != nil {
+		return nil, err
+	}
+	return contents, nil
+}
 
 func init() {
 	if info, ok := debug.ReadBuildInfo(); ok {
@@ -157,6 +179,13 @@ contents:
 - src: sidekick.service
   dst: /lib/systemd/system/sidekick.service
 {{end}}
+{{- range .ExtraContents }}
+- src: {{ .Src }}
+  dst: {{ .Dst }}
+{{- if .Type }}
+  type: {{ .Type }}
+{{- end }}
+{{- end }}
 scripts:
 {{- range $name, $path := .Scripts }}
   {{ $name }}: "{{ $path }}"
@@ -377,7 +406,6 @@ chmod +x minio
 						Checksum: fmt.Sprintf("https://dl.min.io/aistor/minio/%s/darwin-%s/minio.sha256sum", pathSegment, arch),
 					},
 				}
-
 			}
 		}
 
@@ -405,7 +433,6 @@ minio.exe --version`, pathSegment, arch),
 						Checksum: fmt.Sprintf("https://dl.min.io/aistor/minio/%s/windows-%s/minio.exe.sha256sum", pathSegment, arch),
 					},
 				}
-
 			}
 		}
 	}
@@ -824,8 +851,9 @@ type releaseTmpl struct {
 	Release       string
 	SemVerRelease string
 
-	Scripts map[string]string
-	Deps    map[string][]string
+	Scripts       map[string]string
+	Deps          map[string][]string
+	ExtraContents []extraContent
 }
 
 const (
@@ -880,6 +908,15 @@ func doPackage(appName, license, release, packager, deps, scriptsDir string) err
 	if deps != "" {
 		var err error
 		pkgDeps, err = parseDepsFile(deps)
+		if err != nil {
+			return err
+		}
+	}
+
+	var extraContents []extraContent
+	if *contentsFile != "" {
+		var err error
+		extraContents, err = parseContentsFile(*contentsFile)
 		if err != nil {
 			return err
 		}
@@ -968,7 +1005,18 @@ func doPackage(appName, license, release, packager, deps, scriptsDir string) err
 				}
 				return
 			}(),
-			Deps:          pkgDeps,
+			Deps: pkgDeps,
+			ExtraContents: func() []extraContent {
+				expanded := make([]extraContent, len(extraContents))
+				for i, c := range extraContents {
+					expanded[i] = extraContent{
+						Src:  strings.ReplaceAll(c.Src, "${ARCH}", arch),
+						Dst:  strings.ReplaceAll(c.Dst, "${ARCH}", arch),
+						Type: c.Type,
+					}
+				}
+				return expanded
+			}(),
 			OS:            "linux",
 			Arch:          arch,
 			Release:       release,

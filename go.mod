@@ -1,8 +1,8 @@
 module github.com/minio/pkger/v2
 
-go 1.25
+go 1.26
 
-toolchain go1.25.5
+toolchain go1.26.1
 
 require (
 	github.com/alecthomas/kingpin v2.2.6+incompatible
