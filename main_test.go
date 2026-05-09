@@ -348,6 +348,11 @@ func TestReleaseDirName(t *testing.T) {
 			appName:  "warp",
 			expected: "warp-release",
 		},
+		{
+			name:     "memkv",
+			appName:  "memkv",
+			expected: "memkv-release",
+		},
 	}
 
 	for _, tt := range tests {
