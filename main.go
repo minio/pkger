@@ -956,6 +956,15 @@ func doPackage(appName, license, release, packager, deps, scriptsDir string) err
 		if appName == "memkv" && arch != "amd64" && arch != "arm64" {
 			continue
 		}
+		if appName == "agstor" && arch != "amd64" && arch != "arm64" {
+			continue
+		}
+		if appName == "minfs" && arch != "amd64" && arch != "arm64" {
+			continue
+		}
+		if appName == "minfs-cache-server" && arch != "amd64" && arch != "arm64" {
+			continue
+		}
 
 		var buf bytes.Buffer
 		err = mtmpl.Execute(&buf, releaseTmpl{
@@ -995,6 +1004,21 @@ func doPackage(appName, license, release, packager, deps, scriptsDir string) err
 					return `MemKV is a High Performance Inference Context Memory Store.
   The package bundles the server, the NIXL plugin, the LD_PRELOAD shim,
   and Python plugins for LMCache and sglang.`
+				}
+				if appName == "agstor" {
+					return `AGStor is the agent-aware workspace mount for MinIO AIStor.
+  It mounts a MinIO AIStor bucket as a POSIX-correct workspace for
+  autonomous coding agents and sandbox runtimes.`
+				}
+				if appName == "minfs" {
+					return `minfs is the cache-tier mount for MinIO AIStor.
+  It serves MinIO AIStor reads through a local on-disk or
+  distributed cache cluster.`
+				}
+				if appName == "minfs-cache-server" {
+					return `minfs-cache-server is an NVMe-backed distributed cache daemon
+  for minfs. It clusters via SWIM gossip and places blocks via
+  rendezvous hashing.`
 				}
 				return `MinIO is a High Performance Object Storage released under AGPLv3.
   It is API compatible with Amazon S3 cloud storage service. Use MinIO to build
