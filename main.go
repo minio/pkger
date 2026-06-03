@@ -956,7 +956,7 @@ func doPackage(appName, license, release, packager, deps, scriptsDir string) err
 		if appName == "memkv" && arch != "amd64" && arch != "arm64" {
 			continue
 		}
-		if appName == "agstor" && arch != "amd64" && arch != "arm64" {
+		if appName == "aimem" && arch != "amd64" && arch != "arm64" {
 			continue
 		}
 		if appName == "minfs" && arch != "amd64" && arch != "arm64" {
@@ -1005,10 +1005,10 @@ func doPackage(appName, license, release, packager, deps, scriptsDir string) err
   The package bundles the server, the NIXL plugin, the LD_PRELOAD shim,
   and Python plugins for LMCache and sglang.`
 				}
-				if appName == "agstor" {
-					return `AGStor is the agent-aware workspace mount for MinIO AIStor.
-  It mounts a MinIO AIStor bucket as a POSIX-correct workspace for
-  autonomous coding agents and sandbox runtimes.`
+				if appName == "aimem" {
+					return `AIMem is the workspace, memory, and secrets mount for MinIO AIStor.
+  It mounts a MinIO AIStor bucket as a POSIX-correct workspace with
+  hydrated agent memory and KMS-backed secrets via MinKMS.`
 				}
 				if appName == "minfs" {
 					return `minfs is the cache-tier mount for MinIO AIStor.
