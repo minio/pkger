@@ -100,6 +100,9 @@ var (
 	contentsFile = app.Flag("contents", "YAML file with additional nfpm content entries (src/dst/type), supports ${ARCH} expansion").
 			Short('c').
 			String()
+
+	installName = app.Flag("install-name", "Install the binary under /usr/local/bin using this name instead of the package name; when it differs, a back-compat symlink at the package name is also created (e.g. --install-name aistor => /usr/local/bin/aistor + /usr/local/bin/minio -> aistor)").
+			String()
 )
 
 type extraContent struct {
@@ -170,7 +173,12 @@ rpm:
   group: Applications/File
 contents:
 - src: {{ .ReleaseDir }}/{{ .OS }}-{{ .Arch }}/{{ .Binary }}.{{ .Release }}
+  dst: /usr/local/bin/{{ .BinName }}
+{{if ne .BinName .App}}
+- src: {{ .BinName }}
   dst: /usr/local/bin/{{ .App }}
+  type: symlink
+{{end}}
 {{if or (eq .Binary "minio") (eq .Binary "aistor")}}
 - src: minio.service
   dst: /lib/systemd/system/minio.service
@@ -778,7 +786,7 @@ func main() {
 	}
 
 	if !*noPackages {
-		if err := doPackage(*appName, *license, *release, *packager, *deps, *scriptsDir); err != nil {
+		if err := doPackage(*appName, *license, *release, *packager, *deps, *scriptsDir, *installName); err != nil {
 			if !*ignoreMissingArch {
 				kingpin.Fatalf(err.Error())
 			} else {
@@ -845,6 +853,7 @@ type releaseTmpl struct {
 	License       string
 	ReleaseDir    string
 	Binary        string
+	BinName       string
 	Description   string
 	OS            string
 	Arch          string
@@ -854,6 +863,43 @@ type releaseTmpl struct {
 	Scripts       map[string]string
 	Deps          map[string][]string
 	ExtraContents []extraContent
+}
+
+// pkgName is the nfpm package name (the "name:" field). Kept stable across the
+// aistor rename so existing installs upgrade in place rather than treating the
+// package as new.
+func pkgName(appName string) string {
+	switch appName {
+	case "minio-enterprise":
+		return "minio"
+	case "mc", "mc-enterprise":
+		return "mcli"
+	}
+	return appName
+}
+
+// binarySrcName is the base name of the built binary picked up from the release
+// dir (src is "<binarySrcName>.<release>"). Independent of the installed path.
+func binarySrcName(appName string) string {
+	switch appName {
+	case "minio-enterprise":
+		return "minio"
+	case "mc-enterprise":
+		return "mc"
+	}
+	return appName
+}
+
+// resolveBinName is the name the binary is installed as under /usr/local/bin.
+// It defaults to the package name (current behavior); the --install-name flag
+// overrides it (e.g. "aistor"). When the result differs from the package name
+// the template also emits a back-compat symlink at the package name
+// (e.g. /usr/local/bin/minio -> aistor).
+func resolveBinName(appName, installName string) string {
+	if installName != "" {
+		return installName
+	}
+	return pkgName(appName)
 }
 
 const (
@@ -903,7 +949,7 @@ func parseDepsFile(path string) (map[string][]string, error) {
 }
 
 // nolint:funlen
-func doPackage(appName, license, release, packager, deps, scriptsDir string) error {
+func doPackage(appName, license, release, packager, deps, scriptsDir, installName string) error {
 	var pkgDeps map[string][]string
 	if deps != "" {
 		var err error
@@ -968,28 +1014,13 @@ func doPackage(appName, license, release, packager, deps, scriptsDir string) err
 
 		var buf bytes.Buffer
 		err = mtmpl.Execute(&buf, releaseTmpl{
-			App: func() string {
-				if appName == "minio-enterprise" {
-					return "minio"
-				}
-				if appName == "mc" || appName == "mc-enterprise" {
-					return "mcli"
-				}
-				return appName
-			}(),
+			App: pkgName(appName),
 			License: func() string {
 				return license
 			}(),
 			ReleaseDir: releaseDirName(),
-			Binary: func() string {
-				if appName == "minio-enterprise" {
-					return "minio"
-				}
-				if appName == "mc-enterprise" {
-					return "mc"
-				}
-				return appName
-			}(),
+			Binary:     binarySrcName(appName),
+			BinName:    resolveBinName(appName, installName),
 			Description: func() string {
 				if appName == "minio-enterprise" {
 					return `MinIO is a High Performance Object Store.

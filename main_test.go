@@ -18,9 +18,139 @@
 package main
 
 import (
+	"bytes"
 	"strings"
 	"testing"
+	"text/template"
+
+	"github.com/goreleaser/nfpm/v2"
 )
+
+// renderPackageYAML renders the nfpm package template for an app the same way
+// doPackage does, so tests exercise the real name/symlink logic.
+func renderPackageYAML(t *testing.T, appName, installName string) string {
+	t.Helper()
+	mtmpl, err := template.New("minio").Parse(tmpl)
+	if err != nil {
+		t.Fatalf("parse template: %v", err)
+	}
+	var buf bytes.Buffer
+	if err := mtmpl.Execute(&buf, releaseTmpl{
+		App:           pkgName(appName),
+		License:       "Test License",
+		ReleaseDir:    pkgName(appName) + "-release",
+		Binary:        binarySrcName(appName),
+		BinName:       resolveBinName(appName, installName),
+		Description:   "Test package",
+		OS:            "linux",
+		Arch:          "amd64",
+		Release:       "RELEASE.2025-03-12T00-00-00Z",
+		SemVerRelease: "20250312000000.0.0",
+	}); err != nil {
+		t.Fatalf("execute template: %v", err)
+	}
+	// The rendered document must be valid nfpm config.
+	rendered := buf.Bytes()
+	if _, err := nfpm.Parse(bytes.NewReader(rendered)); err != nil {
+		t.Fatalf("nfpm.Parse failed for %s: %v\n---\n%s", appName, err, rendered)
+	}
+	return buf.String()
+}
+
+// TestPackageTemplateMinioEnterprise verifies the aistor rename + back-compat
+// symlink for the enterprise minio package when --install-name aistor is set.
+func TestPackageTemplateMinioEnterprise(t *testing.T) {
+	out := renderPackageYAML(t, "minio-enterprise", "aistor")
+
+	// Package name stays "minio" for in-place upgrades.
+	if !strings.Contains(out, `name: "minio"`) {
+		t.Errorf("expected package name minio, got:\n%s", out)
+	}
+	// Real binary installs as aistor.
+	if !strings.Contains(out, "dst: /usr/local/bin/aistor") {
+		t.Errorf("expected binary installed at /usr/local/bin/aistor, got:\n%s", out)
+	}
+	// Source still comes from the minio.<release> artifact.
+	if !strings.Contains(out, "src: minio-release/linux-amd64/minio.RELEASE.2025-03-12T00-00-00Z") {
+		t.Errorf("expected src minio.<release>, got:\n%s", out)
+	}
+	// Back-compat symlink /usr/local/bin/minio -> aistor.
+	if !containsSymlink(out, "aistor", "/usr/local/bin/minio") {
+		t.Errorf("expected symlink /usr/local/bin/minio -> aistor, got:\n%s", out)
+	}
+	// Service file still shipped unchanged.
+	if !strings.Contains(out, "dst: /lib/systemd/system/minio.service") {
+		t.Errorf("expected minio.service, got:\n%s", out)
+	}
+}
+
+// TestPackageTemplateNoSymlinkForOthers ensures that without --install-name the
+// output is unchanged: the binary installs under the package name and no compat
+// symlink is emitted. The minio-enterprise/default row proves the rename is
+// strictly opt-in (no flag => old behavior).
+func TestPackageTemplateNoSymlinkForOthers(t *testing.T) {
+	tests := []struct {
+		name        string
+		appName     string
+		installName string
+		wantName    string
+		wantBinDst  string
+		wantSvc     bool // minio.service shipped?
+	}{
+		{"minio-enterprise default", "minio-enterprise", "", "minio", "/usr/local/bin/minio", true},
+		{"minio community", "minio", "", "minio", "/usr/local/bin/minio", true},
+		{"mc-enterprise", "mc-enterprise", "", "mcli", "/usr/local/bin/mcli", false},
+		{"sidekick", "sidekick", "", "sidekick", "/usr/local/bin/sidekick", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			out := renderPackageYAML(t, tt.appName, tt.installName)
+			if !strings.Contains(out, `name: "`+tt.wantName+`"`) {
+				t.Errorf("expected name %s, got:\n%s", tt.wantName, out)
+			}
+			if !strings.Contains(out, "dst: "+tt.wantBinDst) {
+				t.Errorf("expected binary at %s, got:\n%s", tt.wantBinDst, out)
+			}
+			if strings.Contains(out, "type: symlink") {
+				t.Errorf("%s should not emit a compat symlink, got:\n%s", tt.appName, out)
+			}
+			if strings.Contains(out, "aistor") {
+				t.Errorf("%s should not mention aistor, got:\n%s", tt.appName, out)
+			}
+			hasSvc := strings.Contains(out, "dst: /lib/systemd/system/minio.service")
+			if hasSvc != tt.wantSvc {
+				t.Errorf("%s minio.service presence = %v, want %v", tt.appName, hasSvc, tt.wantSvc)
+			}
+		})
+	}
+}
+
+// containsSymlink checks the rendered YAML has a content entry that is a symlink
+// with the given src (target) and dst (link path).
+func containsSymlink(out, src, dst string) bool {
+	lines := strings.Split(out, "\n")
+	for i, l := range lines {
+		// src entries are YAML list items ("- src: ...").
+		if strings.TrimSpace(l) != "- src: "+src {
+			continue
+		}
+		// Look at the next two lines for dst + type: symlink.
+		var haveDst, haveType bool
+		for j := i + 1; j < len(lines) && j <= i+2; j++ {
+			s := strings.TrimSpace(lines[j])
+			if s == "dst: "+dst {
+				haveDst = true
+			}
+			if s == "type: symlink" {
+				haveType = true
+			}
+		}
+		if haveDst && haveType {
+			return true
+		}
+	}
+	return false
+}
 
 // TestSemVerRelease tests the conversion from release tags to semver format
 func TestSemVerRelease(t *testing.T) {
@@ -266,7 +396,7 @@ func TestGenerateSidekickDownloadsJSON(t *testing.T) {
 
 // TestGenerateWarpDownloadsJSON tests warp JSON generation
 func TestGenerateWarpDownloadsJSON(t *testing.T) {
-	version := "0.4.3"      // Without 'v' prefix
+	version := "0.4.3"     // Without 'v' prefix
 	releaseTag := "v0.4.3" // With 'v' prefix
 
 	result := generateWarpDownloadsJSON(version, releaseTag)
