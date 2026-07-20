@@ -57,3 +57,38 @@ pkger -r v0.4.3 --appName warp
 ```
 
 The output includes Linux packages (RPM, DEB, APK) in the architecture directories, along with `downloads-warp.json`. This JSON file includes cross-platform download information for Linux (binary, RPM, DEB), macOS (arm64 binary only), and Windows (amd64 binary). Like sidekick, APK packages are built for Linux but only RPM and DEB installation instructions are documented in the JSON.
+
+## Renaming a binary / package (`--binary-name`, `--package-name`)
+
+Two optional flags let you rename what a package installs without breaking existing deployments. Both default to the per-app convention, so omitting them produces exactly the same output as before.
+
+- `--binary-name` overrides the source binary base name read from the release directory (`<releaseDir>/<os>-<arch>/<binary-name>.<release>`) and the raw-binary filename used in the downloads metadata.
+- `--package-name` overrides the package name and the installed command under `/usr/local/bin`.
+
+When `--package-name` differs from the app's default package name, that old name is treated as a legacy name: the package installs a back-compat symlink `/usr/local/bin/<old> -> <new>` and declares `provides`/`replaces`/`conflicts` on the old name so the previous package is superseded on install.
+
+For example, packaging the enterprise minio server as `aistor` while keeping the `minio` command working:
+
+```shell
+pkger -r RELEASE.2025-03-12T00-00-00Z --appName minio-enterprise \
+  --binary-name aistor --package-name aistor
+```
+
+and the enterprise `mc` client whose binary is `ac` but whose package/command is `acli`:
+
+```shell
+pkger -r RELEASE.2025-03-12T00-00-00Z --appName mc-enterprise \
+  --binary-name ac --package-name acli
+```
+
+### Upgrading across the rename
+
+On DEB and RPM the renamed package supersedes the old one automatically via the standard install commands — `dpkg -i` handles the `Replaces`+`Conflicts` takeover and `dnf`/`rpm` handles `Obsoletes` — removing the old package and taking over its files.
+
+APK does not auto-remove a package that was explicitly installed (`apk` reports `breaks: world[...]`). Existing APK installs must be migrated in two steps:
+
+```shell
+apk del minio && apk add --allow-untrusted ./aistor_<version>_<arch>.apk
+```
+
+Fresh APK installs of the renamed package work normally.
