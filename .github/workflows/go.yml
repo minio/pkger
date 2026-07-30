@@ -1,4 +1,4 @@
-name: VulnCheck
+name: Go
 on:
   workflow_dispatch:
   pull_request:
@@ -10,8 +10,8 @@ on:
     - master
     - main
 jobs:
-  vulncheck:
-    name: Analysis
+  test:
+    name: Test
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -23,9 +23,22 @@ jobs:
       with:
         go-version: ${{ matrix.go-version }}
         check-latest: true
-    - name: Get govulncheck
-      run: go install golang.org/x/vuln/cmd/govulncheck@latest
+    - name: Check gofmt
+      run: |
+        unformatted=$(gofmt -l .)
+        if [ -n "$unformatted" ]; then
+          echo "not gofmt-clean:"
+          echo "$unformatted"
+          gofmt -d .
+          exit 1
+        fi
       shell: bash
-    - name: Run govulncheck
-      run: govulncheck ./...
+    - name: Build
+      run: go build ./...
+      shell: bash
+    - name: Vet
+      run: go vet ./...
+      shell: bash
+    - name: Test
+      run: go test -v ./...
       shell: bash

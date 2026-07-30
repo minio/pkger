@@ -50,8 +50,8 @@ var (
 	releaseMatcher = regexp.MustCompile(`[0-9]`)
 
 	app     = kingpin.New("pkger", "Debian, RPMs and APKs for MinIO")
-	appName = app.Flag("appName", "Application name for the package").
-		Default("minio").
+	appName = app.Flag("appName", "Application name for the package: aistor, ac, sidekick, warp, memkv, aimem or minfs").
+		Default("aistor").
 		Short('a').
 		String()
 
@@ -258,6 +258,11 @@ var debArchMap = map[string]string{
 	"arm64": "arm64",
 }
 
+// pkgArches is every architecture pkger packages for. Every supported app
+// (aistor, ac, sidekick, warp, memkv, aimem, minfs) builds for exactly these
+// two; ppc64le went away with the community minio/mc packages.
+var pkgArches = []string{"amd64", "arm64"}
+
 // generateEnterpriseDownloadsJSON builds the downloads metadata. binFile is the
 // raw downloadable binary filename (e.g. "aistor", "ac") and pkgFile is the
 // package filename base / rpm-deb name (e.g. "aistor", "acli"). dl paths are
@@ -280,7 +285,7 @@ func generateEnterpriseDownloadsJSON(semVerTag, appName, releaseTag, binFile, pk
 		MacOS:      make(map[string]map[string]downloadJSON),
 	}
 	for subscription := range d.Subscriptions {
-		if appName == "minio-enterprise" {
+		if appName == "aistor" {
 			// Linux
 			d.Subscriptions[subscription].Linux["AIStor Server"] = map[string]downloadJSON{}
 			d.Subscriptions[subscription].Linux["MinIO KMS"] = map[string]downloadJSON{}
@@ -293,7 +298,7 @@ func generateEnterpriseDownloadsJSON(semVerTag, appName, releaseTag, binFile, pk
 			// MacOS
 			d.Subscriptions[subscription].MacOS["AIStor Server"] = map[string]downloadJSON{}
 		}
-		if appName == "mc-enterprise" {
+		if appName == "ac" {
 			// Linux
 			d.Subscriptions[subscription].Linux["AIStor Client"] = map[string]downloadJSON{}
 			// Kubernetes
@@ -312,7 +317,7 @@ func generateEnterpriseDownloadsJSON(semVerTag, appName, releaseTag, binFile, pk
 			"amd64",
 			"arm64",
 		} {
-			if appName == "mc-enterprise" {
+			if appName == "ac" {
 				d.Subscriptions[subscription].Linux["AIStor Client"][arch] = downloadJSON{
 					Bin: &dlInfo{
 						Download: fmt.Sprintf("https://dl.min.io/aistor/mc/%s/linux-%s/%s", pathSegment, arch, binFile),
@@ -346,7 +351,7 @@ mc --version`, releaseTag),
 					},
 				}
 			}
-			if appName == "minio-enterprise" {
+			if appName == "aistor" {
 				d.Subscriptions[subscription].Kubernetes["AIStor Server"][arch] = downloadJSON{
 					Text: ``,
 				}
@@ -397,7 +402,7 @@ podman run minio/aistor/minio --version`, releaseTag),
 		for _, arch := range []string{
 			"arm64",
 		} {
-			if appName == "mc-enterprise" {
+			if appName == "ac" {
 				d.Subscriptions[subscription].MacOS["AIStor Client"][arch] = downloadJSON{
 					Homebrew: &dlInfo{
 						Download: fmt.Sprintf("https://dl.min.io/aistor/mc/%s/darwin-%s/%s", pathSegment, arch, binFile),
@@ -413,7 +418,7 @@ chmod +x %s
 					},
 				}
 			}
-			if appName == "minio-enterprise" {
+			if appName == "aistor" {
 				d.Subscriptions[subscription].MacOS["AIStor Server"][arch] = downloadJSON{
 					Homebrew: &dlInfo{
 						Download: fmt.Sprintf("https://dl.min.io/server/minio/%s/darwin-%s/%s", pathSegment, arch, binFile),
@@ -435,7 +440,7 @@ chmod +x %s
 		for _, arch := range []string{
 			"amd64",
 		} {
-			if appName == "mc-enterprise" {
+			if appName == "ac" {
 				d.Subscriptions[subscription].Windows["AIStor Client"][arch] = downloadJSON{
 					Bin: &dlInfo{
 						Download: fmt.Sprintf("https://dl.min.io/aistor/mc/%s/windows-%s/%s.exe", pathSegment, arch, binFile),
@@ -447,7 +452,7 @@ chmod +x %s
 				}
 			}
 
-			if appName == "minio-enterprise" {
+			if appName == "aistor" {
 				d.Subscriptions[subscription].Windows["AIStor Server"][arch] = downloadJSON{
 					Bin: &dlInfo{
 						Download: fmt.Sprintf("https://dl.min.io/aistor/minio/%s/windows-%s/%s.exe", pathSegment, arch, binFile),
@@ -462,172 +467,17 @@ chmod +x %s
 	return d
 }
 
-func generateDownloadsJSON(semVerTag string, appName string) downloadsJSON {
-	d := downloadsJSON{
+// generateDownloadsJSON is the fallback metadata generator for apps that have no
+// dl.min.io download page of their own (memkv, aimem, minfs). It intentionally
+// produces an empty document: the packages ship, but there is nothing to link.
+func generateDownloadsJSON() downloadsJSON {
+	return downloadsJSON{
 		Linux:      make(map[string]map[string]downloadJSON),
 		MacOS:      make(map[string]map[string]downloadJSON),
 		Windows:    make(map[string]map[string]downloadJSON),
 		Docker:     make(map[string]map[string]downloadJSON),
 		Kubernetes: make(map[string]map[string]downloadJSON),
 	}
-
-	if appName == "minio" {
-		d.Linux["MinIO Server"] = map[string]downloadJSON{}
-		d.MacOS["MinIO Server"] = map[string]downloadJSON{}
-		d.Windows["MinIO Server"] = map[string]downloadJSON{}
-		d.Docker["MinIO Server"] = map[string]downloadJSON{}
-		d.Kubernetes["MinIO Server"] = map[string]downloadJSON{}
-	}
-
-	if appName == "mc" {
-		d.Linux["MinIO Client"] = map[string]downloadJSON{}
-		d.MacOS["MinIO Client"] = map[string]downloadJSON{}
-		d.Windows["MinIO Client"] = map[string]downloadJSON{}
-		d.Docker["MinIO Client"] = map[string]downloadJSON{}
-		d.Kubernetes["MinIO Client"] = map[string]downloadJSON{}
-	}
-
-	for _, linuxArch := range []string{
-		"amd64",
-		"arm64",
-		"ppc64le",
-	} {
-		if appName == "minio" {
-			d.Kubernetes["MinIO Server"][linuxArch] = downloadJSON{
-				Kubectl: &dlInfo{
-					Text: `kubectl apply -k github.com/minio/operator`,
-				},
-			}
-			d.Docker["MinIO Server"][linuxArch] = downloadJSON{
-				Podman: &dlInfo{
-					Text: `podman pull quay.io/minio/minio:latest
-podman run minio/minio --version`,
-				},
-			}
-			d.Linux["MinIO Server"][linuxArch] = downloadJSON{
-				Bin: &dlInfo{
-					Download: fmt.Sprintf("https://dl.min.io/server/minio/release/linux-%s/minio", linuxArch),
-					Text: fmt.Sprintf(`wget https://dl.min.io/server/minio/release/linux-%s/minio
-chmod +x minio
-./minio --version`, linuxArch),
-					Checksum: fmt.Sprintf("https://dl.min.io/server/minio/release/linux-%s/minio.sha256sum", linuxArch),
-				},
-				RPM: &dlInfo{
-					Download: fmt.Sprintf("https://dl.min.io/server/minio/release/linux-%s/minio-%s-1.%s.rpm", linuxArch, semVerTag, rpmArchMap[linuxArch]),
-					Checksum: fmt.Sprintf("https://dl.min.io/server/minio/release/linux-%s/minio-%s-1.%s.rpm.sha256sum", linuxArch, semVerTag, rpmArchMap[linuxArch]),
-					Text: fmt.Sprintf(`dnf install https://dl.min.io/server/minio/release/linux-%s/minio-%s-1.%s.rpm
-minio --version`, linuxArch, semVerTag, rpmArchMap[linuxArch]),
-				},
-				Deb: &dlInfo{
-					Download: fmt.Sprintf("https://dl.min.io/server/minio/release/linux-%s/minio_%s_%s.deb", linuxArch, semVerTag, debArchMap[linuxArch]),
-					Checksum: fmt.Sprintf("https://dl.min.io/server/minio/release/linux-%s/minio_%s_%s.deb.sha256sum", linuxArch, semVerTag, debArchMap[linuxArch]),
-					Text: fmt.Sprintf(`wget https://dl.min.io/server/minio/release/linux-%s/minio_%s_%s.deb
-dpkg -i minio_%s_%s.deb
-minio --version`, linuxArch, semVerTag, debArchMap[linuxArch], semVerTag, debArchMap[linuxArch]),
-				},
-			}
-		}
-		if appName == "mc" {
-			d.Kubernetes["MinIO Client"][linuxArch] = downloadJSON{
-				Kubectl: &dlInfo{
-					Text: `kubectl run my-mc -i --tty --image minio/mc:latest --command -- bash
-mc --version`,
-				},
-			}
-			d.Docker["MinIO Client"][linuxArch] = downloadJSON{
-				Podman: &dlInfo{
-					Text: `podman pull quay.io/minio/mc:latest
-podman run --name my-mc --hostname my-mc -it --entrypoint /bin/bash --rm minio/mc
-mc --version`,
-				},
-			}
-			d.Linux["MinIO Client"][linuxArch] = downloadJSON{
-				Bin: &dlInfo{
-					Download: fmt.Sprintf("https://dl.min.io/client/mc/release/linux-%s/mc", linuxArch),
-					Text: fmt.Sprintf(`wget https://dl.min.io/client/mc/release/linux-%s/mc
-chmod +x mc
-./mc --version`, linuxArch),
-					Checksum: fmt.Sprintf("https://dl.min.io/client/mc/release/linux-%s/mc.sha256sum", linuxArch),
-				},
-				RPM: &dlInfo{
-					Download: fmt.Sprintf("https://dl.min.io/client/mc/release/linux-%s/mcli-%s-1.%s.rpm", linuxArch, semVerTag, rpmArchMap[linuxArch]),
-					Checksum: fmt.Sprintf("https://dl.min.io/client/mc/release/linux-%s/mcli-%s-1.%s.rpm.sha256sum", linuxArch, semVerTag, rpmArchMap[linuxArch]),
-					Text: fmt.Sprintf(`dnf install https://dl.min.io/client/mc/release/linux-%s/mcli-%s-1.%s.rpm
-mcli --version`, linuxArch, semVerTag, rpmArchMap[linuxArch]),
-				},
-				Deb: &dlInfo{
-					Download: fmt.Sprintf("https://dl.min.io/client/mc/release/linux-%s/mcli_%s_%s.deb", linuxArch, semVerTag, debArchMap[linuxArch]),
-					Checksum: fmt.Sprintf("https://dl.min.io/client/mc/release/linux-%s/mcli_%s_%s.deb.sha256sum", linuxArch, semVerTag, debArchMap[linuxArch]),
-					Text: fmt.Sprintf(`wget https://dl.min.io/client/mc/release/linux-%s/mcli_%s_%s.deb
-dpkg -i mcli_%s_%s.deb
-mcli --version`, linuxArch, semVerTag, debArchMap[linuxArch], semVerTag, debArchMap[linuxArch]),
-				},
-			}
-		}
-	}
-
-	for _, macArch := range []string{
-		"amd64",
-		"arm64",
-	} {
-		if appName == "minio" {
-			d.MacOS["MinIO Server"][macArch] = downloadJSON{
-				Homebrew: &dlInfo{
-					Download: fmt.Sprintf("https://dl.min.io/server/minio/release/darwin-%s/minio", macArch),
-					Checksum: fmt.Sprintf("https://dl.min.io/server/minio/release/darwin-%s/minio.sha256sum", macArch),
-					Text:     `brew install minio/stable/minio`,
-				},
-				Bin: &dlInfo{
-					Download: fmt.Sprintf("https://dl.min.io/server/minio/release/darwin-%s/minio", macArch),
-					Checksum: fmt.Sprintf("https://dl.min.io/server/minio/release/darwin-%s/minio.sha256sum", macArch),
-					Text: fmt.Sprintf(`curl --progress-bar -O https://dl.min.io/server/minio/release/darwin-%s/minio
-chmod +x minio
-./minio --version`, macArch),
-				},
-			}
-		}
-		if appName == "mc" {
-			d.MacOS["MinIO Client"][macArch] = downloadJSON{
-				Homebrew: &dlInfo{
-					Download: fmt.Sprintf("https://dl.min.io/client/mc/release/darwin-%s/mc", macArch),
-					Checksum: fmt.Sprintf("https://dl.min.io/client/mc/release/darwin-%s/mc.sha256sum", macArch),
-					Text:     `brew install minio/stable/mc`,
-				},
-				Bin: &dlInfo{
-					Download: fmt.Sprintf("https://dl.min.io/client/mc/release/darwin-%s/mc", macArch),
-					Checksum: fmt.Sprintf("https://dl.min.io/client/mc/release/darwin-%s/mc.sha256sum", macArch),
-					Text: fmt.Sprintf(`curl --progress-bar -O https://dl.min.io/client/mc/release/darwin-%s/mc
-chmod +x mc
-./minio --version`, macArch),
-				},
-			}
-		}
-	}
-	for _, winArch := range []string{
-		"amd64",
-	} {
-		if appName == "minio" {
-			d.Windows["MinIO Server"][winArch] = downloadJSON{
-				Bin: &dlInfo{
-					Download: fmt.Sprintf("https://dl.min.io/server/minio/release/windows-%s/minio.exe", winArch),
-					Text: fmt.Sprintf(`Invoke-WebRequest -Uri "https://dl.min.io/server/minio/release/windows-%s/minio.exe" -OutFile "minio.exe"
-minio.exe --version`, winArch),
-					Checksum: fmt.Sprintf("https://dl.min.io/server/minio/release/windows-%s/minio.exe.sha256sum", winArch),
-				},
-			}
-		}
-		if appName == "mc" {
-			d.Windows["MinIO Client"][winArch] = downloadJSON{
-				Bin: &dlInfo{
-					Download: fmt.Sprintf("https://dl.min.io/client/mc/release/windows-%s/mc.exe", winArch),
-					Text: fmt.Sprintf(`Invoke-WebRequest -Uri "https://dl.min.io/client/mc/release/windows-%s/mc.exe" -OutFile "mc.exe"
-mc.exe --version`, winArch),
-					Checksum: fmt.Sprintf("https://dl.min.io/client/mc/release/windows-%s/mc.exe.sha256sum", winArch),
-				},
-			}
-		}
-	}
-	return d
 }
 
 func generateSidekickDownloadsJSON(semVerTag, releaseTag string) downloadsJSON {
@@ -776,9 +626,11 @@ func releaseDirName() string {
 	}
 	name := *appName
 	switch name {
-	case "minio-enterprise":
+	// The built artifacts still land in minio-release/ and mc-release/; only the
+	// app name was rebranded.
+	case "aistor":
 		name = "minio"
-	case "mc-enterprise":
+	case "ac":
 		name = "mc"
 	}
 	return name + "-release"
@@ -827,7 +679,7 @@ func main() {
 	outputFilename += ".json"
 
 	switch *appName {
-	case "minio-enterprise", "mc-enterprise":
+	case "aistor", "ac":
 		semVerTag := semVerRelease(*release)
 		d = generateEnterpriseDownloadsJSON(semVerTag, *appName, *release, binarySrcName(*appName, *binaryName), pkgName(*appName, *packageName), *edge)
 	case "sidekick":
@@ -848,8 +700,7 @@ func main() {
 		// Strip 'v' prefix for package naming conventions
 		d = generateWarpDownloadsJSON(versionWithoutV, *release)
 	default:
-		semVerTag := semVerRelease(*release)
-		d = generateDownloadsJSON(semVerTag, *appName)
+		d = generateDownloadsJSON()
 	}
 
 	buf, err := json.Marshal(&d)
@@ -885,9 +736,9 @@ type releaseTmpl struct {
 // legacy name (compat symlink + provides/replaces/conflicts).
 func defaultPkgName(appName string) string {
 	switch appName {
-	case "minio-enterprise":
+	case "aistor":
 		return "minio"
-	case "mc", "mc-enterprise":
+	case "ac":
 		return "mcli"
 	}
 	return appName
@@ -898,9 +749,9 @@ func defaultPkgName(appName string) string {
 // it. Independent of the package/install name.
 func defaultBinarySrcName(appName string) string {
 	switch appName {
-	case "minio-enterprise":
+	case "aistor":
 		return "minio"
-	case "mc-enterprise":
+	case "ac":
 		return "mc"
 	}
 	return appName
@@ -1014,36 +865,7 @@ func doPackage(appName, license, release, packager, deps, scriptsDir, binaryName
 		semVerTag = semVerRelease(release)
 	}
 
-	for _, arch := range []string{
-		"amd64",
-		"arm64",
-		"ppc64le",
-	} {
-		if appName == "minio-enterprise" && arch != "amd64" && arch != "arm64" {
-			continue
-		}
-		if appName == "mc-enterprise" && arch != "amd64" && arch != "arm64" {
-			continue
-		}
-		if appName == "sidekick" && arch != "amd64" && arch != "arm64" {
-			continue
-		}
-		if appName == "warp" && arch != "amd64" && arch != "arm64" {
-			continue
-		}
-		if appName == "memkv" && arch != "amd64" && arch != "arm64" {
-			continue
-		}
-		if appName == "aimem" && arch != "amd64" && arch != "arm64" {
-			continue
-		}
-		if appName == "minfs" && arch != "amd64" && arch != "arm64" {
-			continue
-		}
-		if appName == "minfs-cache-server" && arch != "amd64" && arch != "arm64" {
-			continue
-		}
-
+	for _, arch := range pkgArches {
 		var buf bytes.Buffer
 		err = mtmpl.Execute(&buf, releaseTmpl{
 			App: pkgName(appName, packageName),
@@ -1054,13 +876,13 @@ func doPackage(appName, license, release, packager, deps, scriptsDir, binaryName
 			Binary:     binarySrcName(appName, binaryName),
 			LegacyName: legacyName(appName, packageName),
 			Description: func() string {
-				if appName == "minio-enterprise" {
+				if appName == "aistor" {
 					return `MinIO is a High Performance Object Store.
   It is API compatible with Amazon S3 cloud storage service. Use MinIO to build
   high performance infrastructure for machine learning, analytics and application
   data workloads.`
 				}
-				if appName == "mc" || appName == "mc-enterprise" {
+				if appName == "ac" {
 					return `MinIO Client for cloud storage and filesystems`
 				}
 				if appName == "memkv" {
@@ -1077,11 +899,6 @@ func doPackage(appName, license, release, packager, deps, scriptsDir, binaryName
 					return `minfs is the cache-tier mount for MinIO AIStor.
   It serves MinIO AIStor reads through a local on-disk or
   distributed cache cluster.`
-				}
-				if appName == "minfs-cache-server" {
-					return `minfs-cache-server is an NVMe-backed distributed cache daemon
-  for minfs. It clusters via SWIM gossip and places blocks via
-  rendezvous hashing.`
 				}
 				return `MinIO is a High Performance Object Storage released under AGPLv3.
   It is API compatible with Amazon S3 cloud storage service. Use MinIO to build
@@ -1155,11 +972,6 @@ func doPackage(appName, license, release, packager, deps, scriptsDir, binaryName
 			}
 
 			{
-				curDir, err := os.Getwd()
-				if err != nil {
-					return err
-				}
-
 				// Stable "latest" alias filename in the release dir. On the
 				// default (non-rename) path this intentionally keeps the
 				// historical alias name (minio.deb, mc.deb, ...) even where it
@@ -1171,16 +983,50 @@ func doPackage(appName, license, release, packager, deps, scriptsDir, binaryName
 					if packageName != "" {
 						return packageName
 					}
-					if appName == "minio-enterprise" {
+					if appName == "aistor" {
 						return "minio"
 					}
 					return appName
 				}()
 
-				_ = os.Chdir(filepath.Dir(tgtPath))
-				_ = os.Remove(aliasBase + filepath.Ext(tgtPath))
-				_ = os.Symlink(releasePkg, aliasBase+filepath.Ext(tgtPath))
-				_ = os.Chdir(curDir)
+				// target stays a bare filename so the symlink is relative to
+				// the release dir and survives being copied or served from
+				// elsewhere; only the link path is absolute.
+				dir := filepath.Dir(tgtPath)
+				link := func(target, name string) error {
+					path := filepath.Join(dir, name)
+					if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+						return err
+					}
+					return os.Symlink(target, path)
+				}
+
+				if err := link(releasePkg, aliasBase+filepath.Ext(tgtPath)); err != nil {
+					return err
+				}
+
+				// Under a --package-name rename the package filename changes
+				// (minio-*.rpm -> aistor-*.rpm), which would break every
+				// published URL built from the old name. Symlink the old alias
+				// and the old versioned filename (plus its checksum) onto the
+				// new package so existing links keep resolving.
+				if legacy := legacyName(appName, packageName); legacy != "" {
+					legacyInfo := *info
+					legacyInfo.Name = legacy
+					legacyPkg := pkg.ConventionalFileName(&legacyInfo)
+
+					if err := link(releasePkg, legacy+filepath.Ext(tgtPath)); err != nil {
+						return err
+					}
+					if legacyPkg != releasePkg {
+						if err := link(releasePkg, legacyPkg); err != nil {
+							return err
+						}
+						if err := link(releasePkg+".sha256sum", legacyPkg+".sha256sum"); err != nil {
+							return err
+						}
+					}
+				}
 			}
 
 			sh := sha256.New()

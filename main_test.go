@@ -19,11 +19,14 @@ package main
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"text/template"
 
 	"github.com/goreleaser/nfpm/v2"
+	jsoniter "github.com/json-iterator/go"
 )
 
 // renderPackageYAML renders the nfpm package template for an app the same way
@@ -73,13 +76,13 @@ func TestPackageTemplateRename(t *testing.T) {
 		wantService bool
 	}{
 		{
-			name: "minio-enterprise -> aistor", appName: "minio-enterprise",
+			name: "aistor -> aistor", appName: "aistor",
 			binaryName: "aistor", packageName: "aistor",
 			wantPkg: "aistor", wantInstall: "/usr/local/bin/aistor",
 			wantSrcFile: "aistor", wantLegacy: "minio", wantService: true,
 		},
 		{
-			name: "mc-enterprise -> acli (binary ac)", appName: "mc-enterprise",
+			name: "ac -> acli (binary ac)", appName: "ac",
 			binaryName: "ac", packageName: "acli",
 			wantPkg: "acli", wantInstall: "/usr/local/bin/acli",
 			wantSrcFile: "ac", wantLegacy: "mcli", wantService: false,
@@ -129,10 +132,8 @@ func TestPackageTemplateNoRenameDefaults(t *testing.T) {
 		wantSrc    string
 		wantSvc    bool
 	}{
-		{"minio-enterprise", "minio-enterprise", "minio", "/usr/local/bin/minio", "minio", true},
-		{"minio community", "minio", "minio", "/usr/local/bin/minio", "minio", true},
-		{"mc community", "mc", "mcli", "/usr/local/bin/mcli", "mc", false},
-		{"mc-enterprise", "mc-enterprise", "mcli", "/usr/local/bin/mcli", "mc", false},
+		{"aistor", "aistor", "minio", "/usr/local/bin/minio", "minio", true},
+		{"ac", "ac", "mcli", "/usr/local/bin/mcli", "mc", false},
 		{"sidekick", "sidekick", "sidekick", "/usr/local/bin/sidekick", "sidekick", false},
 	}
 	for _, tt := range tests {
@@ -163,14 +164,178 @@ func TestPackageTemplateNoRenameDefaults(t *testing.T) {
 	}
 }
 
+// runDoPackage builds real packages in a temp dir. It stages a source binary for
+// every arch in pkgArches, so no arch is silently skipped, and returns the
+// per-arch release dirs keyed by arch.
+func runDoPackage(t *testing.T, app, pkgOverride string) map[string]string {
+	t.Helper()
+	const rel = "RELEASE.2025-03-12T00-00-00Z"
+
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	oldApp, oldDir, oldIgnore := *appName, *releaseDir, *ignoreMissingArch
+	t.Cleanup(func() { *appName, *releaseDir, *ignoreMissingArch = oldApp, oldDir, oldIgnore })
+	// No --ignore: every arch must package cleanly from the staged fixtures.
+	*appName, *releaseDir, *ignoreMissingArch = app, "", false
+
+	// Stage into the same directory doPackage reads from.
+	relDir := releaseDirName()
+	out := make(map[string]string, len(pkgArches))
+	for _, arch := range pkgArches {
+		archDir := filepath.Join(dir, relDir, "linux-"+arch)
+		if err := os.MkdirAll(archDir, 0o750); err != nil {
+			t.Fatal(err)
+		}
+		src := filepath.Join(archDir, defaultBinarySrcName(app)+"."+rel)
+		if err := os.WriteFile(src, []byte("binary"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		out[arch] = archDir
+	}
+	// aistor packages embed a systemd unit that is not vendored in this repo.
+	if err := os.WriteFile(filepath.Join(dir, "minio.service"), []byte("[Unit]\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := doPackage(app, "Test License", rel, "deb,rpm,apk", "", "./", "", pkgOverride); err != nil {
+		t.Fatalf("doPackage(%s, pkg=%q): %v", app, pkgOverride, err)
+	}
+	return out
+}
+
+// pkgSuffix maps an arch to the per-format package filename suffixes nfpm
+// produces, so the link assertions cover every arch pkgArches builds.
+func pkgSuffix(arch string) map[string]string {
+	return map[string]string{
+		"rpm": "-20250312000000.0.0-1." + rpmArchMap[arch] + ".rpm",
+		"deb": "_20250312000000.0.0_" + debArchMap[arch] + ".deb",
+		"apk": "_20250312000000.0.0_" + rpmArchMap[arch] + ".apk",
+	}
+}
+
+// TestPackageRenameKeepsOldLinks pins the compatibility guarantee for a
+// --package-name rename: the packages ship under the new name, and every
+// filename an already-published URL could reference (the "latest" alias, the
+// versioned package, its checksum) still resolves via a symlink. Checked for
+// every arch, for both renamed apps.
+func TestPackageRenameKeepsOldLinks(t *testing.T) {
+	for _, tt := range []struct {
+		app, pkgOverride, legacy string
+	}{
+		{app: "aistor", pkgOverride: "aistor", legacy: "minio"},
+		{app: "ac", pkgOverride: "acli", legacy: "mcli"},
+	} {
+		t.Run(tt.app, func(t *testing.T) {
+			out := runDoPackage(t, tt.app, tt.pkgOverride)
+
+			for arch, dir := range out {
+				sfx := pkgSuffix(arch)
+
+				// The renamed package is the only real file.
+				for _, format := range []string{"rpm", "deb", "apk"} {
+					name := tt.pkgOverride + sfx[format]
+					fi, err := os.Lstat(filepath.Join(dir, name))
+					if err != nil {
+						t.Fatalf("%s/%s missing: %v", arch, name, err)
+					}
+					if fi.Mode()&os.ModeSymlink != 0 {
+						t.Errorf("%s/%s should be a regular file, not a symlink", arch, name)
+					}
+				}
+
+				var links []string
+				for _, format := range []string{"rpm", "deb", "apk"} {
+					links = append(links,
+						// New-style "latest" alias.
+						tt.pkgOverride+"."+format,
+						// Old-style URLs that must keep working.
+						tt.legacy+"."+format,
+						tt.legacy+sfx[format],
+						tt.legacy+sfx[format]+".sha256sum",
+					)
+				}
+				for _, name := range links {
+					p := filepath.Join(dir, name)
+					fi, err := os.Lstat(p)
+					if err != nil {
+						t.Errorf("%s/%s missing: %v", arch, name, err)
+						continue
+					}
+					if fi.Mode()&os.ModeSymlink == 0 {
+						t.Errorf("%s/%s should be a symlink", arch, name)
+					}
+					// Relative target keeps the link valid if the dir moves.
+					if target, err := os.Readlink(p); err == nil && filepath.IsAbs(target) {
+						t.Errorf("%s/%s target should be relative, got %s", arch, name, target)
+					}
+					if _, err := os.Stat(p); err != nil {
+						t.Errorf("%s/%s does not resolve: %v", arch, name, err)
+					}
+				}
+			}
+		})
+	}
+}
+
+// TestPackageDefaultsEmitNoLegacyLinks is the other half of the contract: with
+// no rename there is nothing to alias, so each arch dir must hold exactly the
+// historical set of files.
+func TestPackageDefaultsEmitNoLegacyLinks(t *testing.T) {
+	for _, tt := range []struct {
+		app, pkg, alias string
+	}{
+		// aistor keeps the historical minio.* alias; ac's alias follows the
+		// app name, as it did pre-rename (mc-enterprise.* -> ac.*), while the
+		// package itself stays mcli.
+		{app: "aistor", pkg: "minio", alias: "minio"},
+		{app: "ac", pkg: "mcli", alias: "ac"},
+	} {
+		t.Run(tt.app, func(t *testing.T) {
+			out := runDoPackage(t, tt.app, "")
+
+			for arch, dir := range out {
+				sfx := pkgSuffix(arch)
+
+				want := map[string]bool{
+					defaultBinarySrcName(tt.app) + ".RELEASE.2025-03-12T00-00-00Z": true,
+				}
+				for _, format := range []string{"rpm", "deb", "apk"} {
+					want[tt.pkg+sfx[format]] = true
+					want[tt.pkg+sfx[format]+".sha256sum"] = true
+					want[tt.alias+"."+format] = true
+				}
+
+				entries, err := os.ReadDir(dir)
+				if err != nil {
+					t.Fatal(err)
+				}
+				got := map[string]bool{}
+				for _, e := range entries {
+					got[e.Name()] = true
+				}
+				for name := range want {
+					if !got[name] {
+						t.Errorf("%s: missing %s", arch, name)
+					}
+					delete(got, name)
+				}
+				for name := range got {
+					t.Errorf("%s: unexpected extra file %s", arch, name)
+				}
+			}
+		})
+	}
+}
+
 // TestEnterpriseDownloadsJSONRename checks the downloads metadata uses the
 // renamed filenames while keeping the dl paths unchanged.
 func TestEnterpriseDownloadsJSONRename(t *testing.T) {
 	semVer := "20250312000000.0.0"
 	rel := "RELEASE.2025-03-12T00-00-00Z"
 
-	t.Run("minio-enterprise", func(t *testing.T) {
-		d := generateEnterpriseDownloadsJSON(semVer, "minio-enterprise", rel, "aistor", "aistor", false)
+	t.Run("aistor", func(t *testing.T) {
+		d := generateEnterpriseDownloadsJSON(semVer, "aistor", rel, "aistor", "aistor", false)
 		lin := d.Subscriptions["Enterprise"].Linux["AIStor Server"]["amd64"]
 		if lin.Bin.Download != "https://dl.min.io/aistor/minio/release/linux-amd64/aistor" {
 			t.Errorf("bin download: %s", lin.Bin.Download)
@@ -183,8 +348,8 @@ func TestEnterpriseDownloadsJSONRename(t *testing.T) {
 		}
 	})
 
-	t.Run("mc-enterprise", func(t *testing.T) {
-		d := generateEnterpriseDownloadsJSON(semVer, "mc-enterprise", rel, "ac", "acli", false)
+	t.Run("ac", func(t *testing.T) {
+		d := generateEnterpriseDownloadsJSON(semVer, "ac", rel, "ac", "acli", false)
 		lin := d.Subscriptions["Enterprise"].Linux["AIStor Client"]["amd64"]
 		if lin.Bin.Download != "https://dl.min.io/aistor/mc/release/linux-amd64/ac" {
 			t.Errorf("bin download: %s", lin.Bin.Download)
@@ -313,7 +478,7 @@ func TestGenerateEnterpriseDownloadsJSON(t *testing.T) {
 	releaseTag := "RELEASE.2025-03-12T00-00-00Z"
 
 	t.Run("MinIO Enterprise Release", func(t *testing.T) {
-		result := generateEnterpriseDownloadsJSON(semVerTag, "minio-enterprise", releaseTag, "minio", "minio", false)
+		result := generateEnterpriseDownloadsJSON(semVerTag, "aistor", releaseTag, "minio", "minio", false)
 
 		// Verify structure
 		if result.Subscriptions == nil {
@@ -342,7 +507,7 @@ func TestGenerateEnterpriseDownloadsJSON(t *testing.T) {
 	})
 
 	t.Run("MinIO Enterprise EDGE", func(t *testing.T) {
-		result := generateEnterpriseDownloadsJSON(semVerTag, "minio-enterprise", releaseTag, "minio", "minio", true)
+		result := generateEnterpriseDownloadsJSON(semVerTag, "aistor", releaseTag, "minio", "minio", true)
 
 		// Verify EDGE path
 		linuxData := result.Subscriptions["Enterprise"].Linux["AIStor Server"]["amd64"]
@@ -358,7 +523,7 @@ func TestGenerateEnterpriseDownloadsJSON(t *testing.T) {
 	})
 
 	t.Run("Docker tags use release version", func(t *testing.T) {
-		result := generateEnterpriseDownloadsJSON(semVerTag, "minio-enterprise", releaseTag, "minio", "minio", false)
+		result := generateEnterpriseDownloadsJSON(semVerTag, "aistor", releaseTag, "minio", "minio", false)
 
 		dockerData := result.Subscriptions["Enterprise"].Docker["AIStor Server"]["amd64"]
 		if dockerData.Podman == nil {
@@ -373,11 +538,11 @@ func TestGenerateEnterpriseDownloadsJSON(t *testing.T) {
 	})
 
 	t.Run("MC Enterprise", func(t *testing.T) {
-		result := generateEnterpriseDownloadsJSON(semVerTag, "mc-enterprise", releaseTag, "mc", "mcli", false)
+		result := generateEnterpriseDownloadsJSON(semVerTag, "ac", releaseTag, "mc", "mcli", false)
 
 		linuxData := result.Subscriptions["Enterprise"].Linux["AIStor Client"]["amd64"]
 		if linuxData.Bin == nil {
-			t.Error("Binary download info missing for mc-enterprise")
+			t.Error("Binary download info missing for ac")
 		}
 
 		// Verify mc paths
@@ -387,46 +552,27 @@ func TestGenerateEnterpriseDownloadsJSON(t *testing.T) {
 	})
 }
 
-// TestGenerateDownloadsJSON tests community JSON generation
+// TestGenerateDownloadsJSON checks the fallback generator still emits a valid,
+// empty document for apps without a dl.min.io download page (memkv, aimem,
+// minfs) so their downloads-<app>.json marshals cleanly.
 func TestGenerateDownloadsJSON(t *testing.T) {
-	semVerTag := "20250312000000.0.0"
+	result := generateDownloadsJSON()
 
-	t.Run("MinIO Community", func(t *testing.T) {
-		result := generateDownloadsJSON(semVerTag, "minio")
-
-		// Verify Linux has all architectures
-		if _, ok := result.Linux["MinIO Server"]["amd64"]; !ok {
-			t.Error("amd64 architecture missing")
+	buf, err := jsoniter.ConfigCompatibleWithStandardLibrary.Marshal(&result)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	for name, section := range map[string]map[string]map[string]downloadJSON{
+		"Linux":      result.Linux,
+		"MacOS":      result.MacOS,
+		"Windows":    result.Windows,
+		"Docker":     result.Docker,
+		"Kubernetes": result.Kubernetes,
+	} {
+		if len(section) != 0 {
+			t.Errorf("expected %s to be empty, got %s", name, buf)
 		}
-		if _, ok := result.Linux["MinIO Server"]["arm64"]; !ok {
-			t.Error("arm64 architecture missing")
-		}
-		if _, ok := result.Linux["MinIO Server"]["ppc64le"]; !ok {
-			t.Error("ppc64le architecture missing")
-		}
-
-		// Verify RPM architecture mapping
-		rpmData := result.Linux["MinIO Server"]["amd64"].RPM
-		if !strings.Contains(rpmData.Download, "x86_64.rpm") {
-			t.Error("RPM should use x86_64 architecture for amd64")
-		}
-
-		// Verify DEB architecture mapping
-		debData := result.Linux["MinIO Server"]["amd64"].Deb
-		if !strings.Contains(debData.Download, "_amd64.deb") {
-			t.Error("DEB should use amd64 architecture")
-		}
-	})
-
-	t.Run("MC Community", func(t *testing.T) {
-		result := generateDownloadsJSON(semVerTag, "mc")
-
-		// Verify package name is mcli not mc
-		rpmData := result.Linux["MinIO Client"]["amd64"].RPM
-		if !strings.Contains(rpmData.Download, "mcli-") {
-			t.Error("MC packages should be named 'mcli'")
-		}
-	})
+	}
 }
 
 // TestGenerateSidekickDownloadsJSON tests sidekick JSON generation
@@ -551,19 +697,14 @@ func TestReleaseDirName(t *testing.T) {
 		expected string
 	}{
 		{
-			name:     "minio-enterprise",
-			appName:  "minio-enterprise",
+			name:     "aistor",
+			appName:  "aistor",
 			expected: "minio-release",
 		},
 		{
-			name:     "mc-enterprise",
-			appName:  "mc-enterprise",
+			name:     "ac",
+			appName:  "ac",
 			expected: "mc-release",
-		},
-		{
-			name:     "minio",
-			appName:  "minio",
-			expected: "minio-release",
 		},
 		{
 			name:     "sidekick",
@@ -579,6 +720,11 @@ func TestReleaseDirName(t *testing.T) {
 			name:     "memkv",
 			appName:  "memkv",
 			expected: "memkv-release",
+		},
+		{
+			name:     "aimem",
+			appName:  "aimem",
+			expected: "aimem-release",
 		},
 	}
 
@@ -625,21 +771,28 @@ func TestArchitectureMappings(t *testing.T) {
 	})
 }
 
+// TestPkgArches pins the packaged arch set. Every supported app (aistor, ac,
+// sidekick, warp, memkv, aimem, minfs) is amd64+arm64 only; ppc64le went away
+// with the community minio/mc packages and must not come back silently.
+func TestPkgArches(t *testing.T) {
+	want := []string{"amd64", "arm64"}
+	if len(pkgArches) != len(want) {
+		t.Fatalf("pkgArches = %v, want %v", pkgArches, want)
+	}
+	for i, arch := range want {
+		if pkgArches[i] != arch {
+			t.Errorf("pkgArches[%d] = %q, want %q", i, pkgArches[i], arch)
+		}
+	}
+}
+
 // TestURLPathStructure validates URL structure for different release types
 func TestURLPathStructure(t *testing.T) {
 	semVerTag := "20250312000000.0.0"
 	releaseTag := "RELEASE.2025-03-12T00-00-00Z"
 
-	t.Run("Community MinIO uses /server/minio/release/", func(t *testing.T) {
-		result := generateDownloadsJSON(semVerTag, "minio")
-		binURL := result.Linux["MinIO Server"]["amd64"].Bin.Download
-		if !strings.HasPrefix(binURL, "https://dl.min.io/server/minio/release/") {
-			t.Errorf("Unexpected URL structure: %s", binURL)
-		}
-	})
-
 	t.Run("Enterprise MinIO uses /aistor/minio/release/", func(t *testing.T) {
-		result := generateEnterpriseDownloadsJSON(semVerTag, "minio-enterprise", releaseTag, "minio", "minio", false)
+		result := generateEnterpriseDownloadsJSON(semVerTag, "aistor", releaseTag, "minio", "minio", false)
 		binURL := result.Subscriptions["Enterprise"].Linux["AIStor Server"]["amd64"].Bin.Download
 		if !strings.HasPrefix(binURL, "https://dl.min.io/aistor/minio/release/") {
 			t.Errorf("Unexpected URL structure: %s", binURL)
@@ -647,7 +800,7 @@ func TestURLPathStructure(t *testing.T) {
 	})
 
 	t.Run("Enterprise EDGE uses /aistor/minio/edge/", func(t *testing.T) {
-		result := generateEnterpriseDownloadsJSON(semVerTag, "minio-enterprise", releaseTag, "minio", "minio", true)
+		result := generateEnterpriseDownloadsJSON(semVerTag, "aistor", releaseTag, "minio", "minio", true)
 		binURL := result.Subscriptions["Enterprise"].Linux["AIStor Server"]["amd64"].Bin.Download
 		if !strings.HasPrefix(binURL, "https://dl.min.io/aistor/minio/edge/") {
 			t.Errorf("Unexpected EDGE URL structure: %s", binURL)
