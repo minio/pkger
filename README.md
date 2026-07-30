@@ -2,9 +2,25 @@
 
 pkger is a packaging tool for MinIO projects that generates DEB, RPM, and APK packages along with download metadata JSON files consumed by min.io/download.
 
-## Packaging minio during development
+## Supported apps
 
-For testing minio packages during development, first install pkger so it's available in your PATH. Then prepare a release directory (such as `dist`) with architecture-specific subdirectories. For example, create `./dist/linux-amd64` and move your compiled minio binary there, renaming it to include the release version like `minio.RELEASE.2025-03-12T00-00-00Z.debug.GIT_TAG`. Make sure to replace the timestamp and git tag with your actual values.
+Every app packages for `linux/amd64` and `linux/arm64` only.
+
+| `--appName` | Release dir        | Binary read | Package name | Versioning |
+| ----------- | ------------------ | ----------- | ------------ | ---------- |
+| `aistor`    | `minio-release`    | `minio`     | `minio`      | date-based |
+| `ac`        | `mc-release`       | `mc`        | `mcli`       | date-based |
+| `sidekick`  | `sidekick-release` | `sidekick`  | `sidekick`   | date-based |
+| `warp`      | `warp-release`     | `warp`      | `warp`       | semver     |
+| `memkv`     | `memkv-release`    | `memkv`     | `memkv`      | date-based |
+| `aimem`     | `aimem-release`    | `aimem`     | `aimem`      | date-based |
+| `minfs`     | `minfs-release`    | `minfs`     | `minfs`      | date-based |
+
+`aistor` and `ac` keep the historical on-disk layout (`minio-release/`, `mc-release/`, `minio`/`mc` binaries, `minio`/`mcli` packages) — only the app name is rebranded. Override any of it with `--releaseDir`, `--binary-name` and `--package-name`.
+
+## Packaging aistor during development
+
+For testing aistor packages during development, first install pkger so it's available in your PATH. Then prepare a release directory (such as `dist`) with architecture-specific subdirectories. For example, create `./dist/linux-amd64` and move your compiled binary there, renaming it to include the release version like `minio.RELEASE.2025-03-12T00-00-00Z.debug.GIT_TAG`. Make sure to replace the timestamp and git tag with your actual values.
 
 You'll also need the minio.service systemd file, which you can download from the minio-service repository:
 
@@ -12,17 +28,17 @@ You'll also need the minio.service systemd file, which you can download from the
 wget -O minio.service "https://raw.githubusercontent.com/minio/minio-service/refs/heads/master/linux-systemd/minio.service"
 ```
 
-Then run pkger with the release version, specifying minio as the app name and using the `--ignore` flag to continue even if some architectures are missing:
+Then run pkger with the release version, specifying aistor as the app name and using the `--ignore` flag to continue even if some architectures are missing:
 
 ```shell
-pkger -r RELEASE.2025-03-12T00-00-00Z.debug.GIT_TAG --appName minio --ignore --releaseDir=dist
+pkger -r RELEASE.2025-03-12T00-00-00Z.debug.GIT_TAG --appName aistor --ignore --releaseDir=dist
 ```
 
-The packaged files (rpm, deb, apk) along with the downloads JSON metadata will be generated in the `./dist` directory.
+The packaged files (rpm, deb, apk) along with `downloads-aistor.json` will be generated in the `./dist` directory.
 
 ## Packaging sidekick releases
 
-Sidekick releases follow a similar workflow. Create the release directory structure with subdirectories for each supported architecture (amd64 and arm64 only). Place your compiled sidekick binaries in these directories with the release version appended to the filename. Note that sidekick only supports amd64 and arm64 architectures—ppc64le is not included.
+Sidekick releases follow a similar workflow. Create the release directory structure with a subdirectory per architecture, then place your compiled sidekick binaries in them with the release version appended to the filename.
 
 ```shell
 mkdir -p ./sidekick-release/linux-amd64 ./sidekick-release/linux-arm64
@@ -42,7 +58,7 @@ The generated packages will appear in the architecture-specific directories alon
 
 Warp uses semantic versioning (e.g., v0.4.3) instead of date-based release tags. The version must include the `v` prefix when you run pkger, but this prefix is automatically stripped in the generated package filenames to follow standard RPM and DEB naming conventions.
 
-Set up the release directories for amd64 and arm64 (warp doesn't support ppc64le):
+Set up the release directories for amd64 and arm64:
 
 ```shell
 mkdir -p ./warp-release/linux-amd64 ./warp-release/linux-arm64
@@ -67,19 +83,33 @@ Two optional flags let you rename what a package installs without breaking exist
 
 When `--package-name` differs from the app's default package name, that old name is treated as a legacy name: the package installs a back-compat symlink `/usr/local/bin/<old> -> <new>` and declares `provides`/`replaces`/`conflicts` on the old name so the previous package is superseded on install.
 
-For example, packaging the enterprise minio server as `aistor` while keeping the `minio` command working:
+For example, shipping the aistor server's packages as `aistor` while leaving the built binary — and the `minio` command customers already invoke — alone:
 
 ```shell
-pkger -r RELEASE.2025-03-12T00-00-00Z --appName minio-enterprise \
-  --binary-name aistor --package-name aistor
+pkger -r RELEASE.2025-03-12T00-00-00Z --appName aistor --package-name aistor
 ```
 
-and the enterprise `mc` client whose binary is `ac` but whose package/command is `acli`:
+and the client, whose packages become `acli` while the installed command stays `mcli`:
 
 ```shell
-pkger -r RELEASE.2025-03-12T00-00-00Z --appName mc-enterprise \
-  --binary-name ac --package-name acli
+pkger -r RELEASE.2025-03-12T00-00-00Z --appName ac --package-name acli
 ```
+
+Note that neither example passes `--binary-name`: the binary read out of the release directory stays `minio`/`mc`, so no new binary has to be built for the rename.
+
+### Existing download links keep working
+
+A rename changes the package filename, which would break every already-published URL built from the old name. pkger therefore symlinks the old names onto the new package, so both resolve:
+
+```
+aistor-<version>-1.x86_64.rpm             # the real package
+aistor.rpm                             -> aistor-<version>-1.x86_64.rpm
+minio.rpm                              -> aistor-<version>-1.x86_64.rpm
+minio-<version>-1.x86_64.rpm           -> aistor-<version>-1.x86_64.rpm
+minio-<version>-1.x86_64.rpm.sha256sum -> aistor-<version>-1.x86_64.rpm.sha256sum
+```
+
+The same applies to DEB and APK. The downloads metadata JSON points at the new (real) filenames; the old ones remain reachable as symlinks. Without `--package-name` no legacy links are emitted, since there is nothing to alias.
 
 ### Upgrading across the rename
 
