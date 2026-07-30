@@ -164,118 +164,167 @@ func TestPackageTemplateNoRenameDefaults(t *testing.T) {
 	}
 }
 
-// runDoPackage builds real packages for a single arch in a temp dir and returns
-// the release dir holding them.
-func runDoPackage(t *testing.T, app, pkgOverride string) string {
+// runDoPackage builds real packages in a temp dir. It stages a source binary for
+// every arch in pkgArches, so no arch is silently skipped, and returns the
+// per-arch release dirs keyed by arch.
+func runDoPackage(t *testing.T, app, pkgOverride string) map[string]string {
 	t.Helper()
 	const rel = "RELEASE.2025-03-12T00-00-00Z"
 
 	dir := t.TempDir()
 	t.Chdir(dir)
 
-	relDir := defaultPkgName(app) + "-release"
-	archDir := filepath.Join(dir, relDir, "linux-amd64")
-	if err := os.MkdirAll(archDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	src := filepath.Join(archDir, defaultBinarySrcName(app)+"."+rel)
-	if err := os.WriteFile(src, []byte("binary"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	// aistor packages embed a systemd unit that is not vendored in this repo.
-	if err := os.WriteFile(filepath.Join(dir, "minio.service"), []byte("[Unit]\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
 	oldApp, oldDir, oldIgnore := *appName, *releaseDir, *ignoreMissingArch
 	t.Cleanup(func() { *appName, *releaseDir, *ignoreMissingArch = oldApp, oldDir, oldIgnore })
-	*appName, *releaseDir, *ignoreMissingArch = app, "", true
+	// No --ignore: every arch must package cleanly from the staged fixtures.
+	*appName, *releaseDir, *ignoreMissingArch = app, "", false
+
+	// Stage into the same directory doPackage reads from.
+	relDir := releaseDirName()
+	out := make(map[string]string, len(pkgArches))
+	for _, arch := range pkgArches {
+		archDir := filepath.Join(dir, relDir, "linux-"+arch)
+		if err := os.MkdirAll(archDir, 0o750); err != nil {
+			t.Fatal(err)
+		}
+		src := filepath.Join(archDir, defaultBinarySrcName(app)+"."+rel)
+		if err := os.WriteFile(src, []byte("binary"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		out[arch] = archDir
+	}
+	// aistor packages embed a systemd unit that is not vendored in this repo.
+	if err := os.WriteFile(filepath.Join(dir, "minio.service"), []byte("[Unit]\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
 
 	if err := doPackage(app, "Test License", rel, "deb,rpm,apk", "", "./", "", pkgOverride); err != nil {
 		t.Fatalf("doPackage(%s, pkg=%q): %v", app, pkgOverride, err)
 	}
-	return filepath.Join(dir, relDir, "linux-amd64")
+	return out
+}
+
+// pkgSuffix maps an arch to the per-format package filename suffixes nfpm
+// produces, so the link assertions cover every arch pkgArches builds.
+func pkgSuffix(arch string) map[string]string {
+	return map[string]string{
+		"rpm": "-20250312000000.0.0-1." + rpmArchMap[arch] + ".rpm",
+		"deb": "_20250312000000.0.0_" + debArchMap[arch] + ".deb",
+		"apk": "_20250312000000.0.0_" + rpmArchMap[arch] + ".apk",
+	}
 }
 
 // TestPackageRenameKeepsOldLinks pins the compatibility guarantee for a
 // --package-name rename: the packages ship under the new name, and every
 // filename an already-published URL could reference (the "latest" alias, the
-// versioned package, its checksum) still resolves via a symlink.
+// versioned package, its checksum) still resolves via a symlink. Checked for
+// every arch, for both renamed apps.
 func TestPackageRenameKeepsOldLinks(t *testing.T) {
-	out := runDoPackage(t, "aistor", "aistor")
+	for _, tt := range []struct {
+		app, pkgOverride, legacy string
+	}{
+		{app: "aistor", pkgOverride: "aistor", legacy: "minio"},
+		{app: "ac", pkgOverride: "acli", legacy: "mcli"},
+	} {
+		t.Run(tt.app, func(t *testing.T) {
+			out := runDoPackage(t, tt.app, tt.pkgOverride)
 
-	real := []string{
-		"aistor-20250312000000.0.0-1.x86_64.rpm",
-		"aistor_20250312000000.0.0_amd64.deb",
-	}
-	for _, name := range real {
-		fi, err := os.Lstat(filepath.Join(out, name))
-		if err != nil {
-			t.Fatalf("%s missing: %v", name, err)
-		}
-		if fi.Mode()&os.ModeSymlink != 0 {
-			t.Errorf("%s should be a regular file, not a symlink", name)
-		}
-	}
+			for arch, dir := range out {
+				sfx := pkgSuffix(arch)
 
-	// Old-style URLs that must keep working.
-	links := []string{
-		"minio.rpm", "minio.deb", "minio.apk",
-		"minio-20250312000000.0.0-1.x86_64.rpm",
-		"minio-20250312000000.0.0-1.x86_64.rpm.sha256sum",
-		"minio_20250312000000.0.0_amd64.deb",
-		"minio_20250312000000.0.0_amd64.deb.sha256sum",
-		// New-style aliases.
-		"aistor.rpm", "aistor.deb", "aistor.apk",
-	}
-	for _, name := range links {
-		p := filepath.Join(out, name)
-		fi, err := os.Lstat(p)
-		if err != nil {
-			t.Errorf("%s missing: %v", name, err)
-			continue
-		}
-		if fi.Mode()&os.ModeSymlink == 0 {
-			t.Errorf("%s should be a symlink", name)
-		}
-		if _, err := os.Stat(p); err != nil {
-			t.Errorf("%s does not resolve: %v", name, err)
-		}
+				// The renamed package is the only real file.
+				for _, format := range []string{"rpm", "deb", "apk"} {
+					name := tt.pkgOverride + sfx[format]
+					fi, err := os.Lstat(filepath.Join(dir, name))
+					if err != nil {
+						t.Fatalf("%s/%s missing: %v", arch, name, err)
+					}
+					if fi.Mode()&os.ModeSymlink != 0 {
+						t.Errorf("%s/%s should be a regular file, not a symlink", arch, name)
+					}
+				}
+
+				var links []string
+				for _, format := range []string{"rpm", "deb", "apk"} {
+					links = append(links,
+						// New-style "latest" alias.
+						tt.pkgOverride+"."+format,
+						// Old-style URLs that must keep working.
+						tt.legacy+"."+format,
+						tt.legacy+sfx[format],
+						tt.legacy+sfx[format]+".sha256sum",
+					)
+				}
+				for _, name := range links {
+					p := filepath.Join(dir, name)
+					fi, err := os.Lstat(p)
+					if err != nil {
+						t.Errorf("%s/%s missing: %v", arch, name, err)
+						continue
+					}
+					if fi.Mode()&os.ModeSymlink == 0 {
+						t.Errorf("%s/%s should be a symlink", arch, name)
+					}
+					// Relative target keeps the link valid if the dir moves.
+					if target, err := os.Readlink(p); err == nil && filepath.IsAbs(target) {
+						t.Errorf("%s/%s target should be relative, got %s", arch, name, target)
+					}
+					if _, err := os.Stat(p); err != nil {
+						t.Errorf("%s/%s does not resolve: %v", arch, name, err)
+					}
+				}
+			}
+		})
 	}
 }
 
 // TestPackageDefaultsEmitNoLegacyLinks is the other half of the contract: with
-// no rename there is nothing to alias, so the release dir must hold exactly the
+// no rename there is nothing to alias, so each arch dir must hold exactly the
 // historical set of files.
 func TestPackageDefaultsEmitNoLegacyLinks(t *testing.T) {
-	out := runDoPackage(t, "aistor", "")
+	for _, tt := range []struct {
+		app, pkg, alias string
+	}{
+		// aistor keeps the historical minio.* alias; ac's alias follows the
+		// app name, as it did pre-rename (mc-enterprise.* -> ac.*), while the
+		// package itself stays mcli.
+		{app: "aistor", pkg: "minio", alias: "minio"},
+		{app: "ac", pkg: "mcli", alias: "ac"},
+	} {
+		t.Run(tt.app, func(t *testing.T) {
+			out := runDoPackage(t, tt.app, "")
 
-	entries, err := os.ReadDir(out)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got := map[string]bool{}
-	for _, e := range entries {
-		got[e.Name()] = true
-	}
-	want := []string{
-		"minio.RELEASE.2025-03-12T00-00-00Z",
-		"minio-20250312000000.0.0-1.x86_64.rpm",
-		"minio-20250312000000.0.0-1.x86_64.rpm.sha256sum",
-		"minio_20250312000000.0.0_amd64.deb",
-		"minio_20250312000000.0.0_amd64.deb.sha256sum",
-		"minio_20250312000000.0.0_x86_64.apk",
-		"minio_20250312000000.0.0_x86_64.apk.sha256sum",
-		"minio.rpm", "minio.deb", "minio.apk",
-	}
-	for _, name := range want {
-		if !got[name] {
-			t.Errorf("missing %s", name)
-		}
-		delete(got, name)
-	}
-	for name := range got {
-		t.Errorf("unexpected extra file %s", name)
+			for arch, dir := range out {
+				sfx := pkgSuffix(arch)
+
+				want := map[string]bool{
+					defaultBinarySrcName(tt.app) + ".RELEASE.2025-03-12T00-00-00Z": true,
+				}
+				for _, format := range []string{"rpm", "deb", "apk"} {
+					want[tt.pkg+sfx[format]] = true
+					want[tt.pkg+sfx[format]+".sha256sum"] = true
+					want[tt.alias+"."+format] = true
+				}
+
+				entries, err := os.ReadDir(dir)
+				if err != nil {
+					t.Fatal(err)
+				}
+				got := map[string]bool{}
+				for _, e := range entries {
+					got[e.Name()] = true
+				}
+				for name := range want {
+					if !got[name] {
+						t.Errorf("%s: missing %s", arch, name)
+					}
+					delete(got, name)
+				}
+				for name := range got {
+					t.Errorf("%s: unexpected extra file %s", arch, name)
+				}
+			}
+		})
 	}
 }
 
@@ -513,8 +562,16 @@ func TestGenerateDownloadsJSON(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
-	if len(result.Linux) != 0 || len(result.MacOS) != 0 || len(result.Windows) != 0 {
-		t.Errorf("expected an empty document, got %s", buf)
+	for name, section := range map[string]map[string]map[string]downloadJSON{
+		"Linux":      result.Linux,
+		"MacOS":      result.MacOS,
+		"Windows":    result.Windows,
+		"Docker":     result.Docker,
+		"Kubernetes": result.Kubernetes,
+	} {
+		if len(section) != 0 {
+			t.Errorf("expected %s to be empty, got %s", name, buf)
+		}
 	}
 }
 

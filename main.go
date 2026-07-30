@@ -972,11 +972,6 @@ func doPackage(appName, license, release, packager, deps, scriptsDir, binaryName
 			}
 
 			{
-				curDir, err := os.Getwd()
-				if err != nil {
-					return err
-				}
-
 				// Stable "latest" alias filename in the release dir. On the
 				// default (non-rename) path this intentionally keeps the
 				// historical alias name (minio.deb, mc.deb, ...) even where it
@@ -994,13 +989,21 @@ func doPackage(appName, license, release, packager, deps, scriptsDir, binaryName
 					return appName
 				}()
 
-				link := func(target, name string) {
-					_ = os.Remove(name)
-					_ = os.Symlink(target, name)
+				// target stays a bare filename so the symlink is relative to
+				// the release dir and survives being copied or served from
+				// elsewhere; only the link path is absolute.
+				dir := filepath.Dir(tgtPath)
+				link := func(target, name string) error {
+					path := filepath.Join(dir, name)
+					if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+						return err
+					}
+					return os.Symlink(target, path)
 				}
 
-				_ = os.Chdir(filepath.Dir(tgtPath))
-				link(releasePkg, aliasBase+filepath.Ext(tgtPath))
+				if err := link(releasePkg, aliasBase+filepath.Ext(tgtPath)); err != nil {
+					return err
+				}
 
 				// Under a --package-name rename the package filename changes
 				// (minio-*.rpm -> aistor-*.rpm), which would break every
@@ -1012,13 +1015,18 @@ func doPackage(appName, license, release, packager, deps, scriptsDir, binaryName
 					legacyInfo.Name = legacy
 					legacyPkg := pkg.ConventionalFileName(&legacyInfo)
 
-					link(releasePkg, legacy+filepath.Ext(tgtPath))
+					if err := link(releasePkg, legacy+filepath.Ext(tgtPath)); err != nil {
+						return err
+					}
 					if legacyPkg != releasePkg {
-						link(releasePkg, legacyPkg)
-						link(releasePkg+".sha256sum", legacyPkg+".sha256sum")
+						if err := link(releasePkg, legacyPkg); err != nil {
+							return err
+						}
+						if err := link(releasePkg+".sha256sum", legacyPkg+".sha256sum"); err != nil {
+							return err
+						}
 					}
 				}
-				_ = os.Chdir(curDir)
 			}
 
 			sh := sha256.New()

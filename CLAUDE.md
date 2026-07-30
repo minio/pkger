@@ -171,11 +171,11 @@ Renaming an app or changing the JSON filename requires coordinated edits there. 
 
 ## File Structure
 
-```
+```text
 pkger/
 ├── main.go              # Single-file application
 ├── main_test.go         # Unit tests
-├── go.mod               # Go 1.25+ required
+├── go.mod               # Go 1.26+ required
 ├── sidekick.service     # Systemd unit shipped in sidekick packages
 ├── dist/                # GoReleaser output for pkger itself
 └── {app}-release/       # Input/output directories for packaging

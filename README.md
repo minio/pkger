@@ -101,7 +101,7 @@ Note that neither example passes `--binary-name`: the binary read out of the rel
 
 A rename changes the package filename, which would break every already-published URL built from the old name. pkger therefore symlinks the old names onto the new package, so both resolve:
 
-```
+```text
 aistor-<version>-1.x86_64.rpm             # the real package
 aistor.rpm                             -> aistor-<version>-1.x86_64.rpm
 minio.rpm                              -> aistor-<version>-1.x86_64.rpm
