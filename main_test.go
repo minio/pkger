@@ -553,8 +553,8 @@ func TestGenerateEnterpriseDownloadsJSON(t *testing.T) {
 }
 
 // TestGenerateDownloadsJSON checks the fallback generator still emits a valid,
-// empty document for apps without a dl.min.io download page (memkv, aimem,
-// minfs) so their downloads-<app>.json marshals cleanly.
+// empty document for apps without a dl.min.io download page (aimem) so their
+// downloads-<app>.json marshals cleanly.
 func TestGenerateDownloadsJSON(t *testing.T) {
 	result := generateDownloadsJSON()
 
@@ -772,7 +772,7 @@ func TestArchitectureMappings(t *testing.T) {
 }
 
 // TestPkgArches pins the packaged arch set. Every supported app (aistor, ac,
-// sidekick, warp, memkv, aimem, minfs) is amd64+arm64 only; ppc64le went away
+// sidekick, warp, memkv, aimem) is amd64+arm64 only; ppc64le went away
 // with the community minio/mc packages and must not come back silently.
 func TestPkgArches(t *testing.T) {
 	want := []string{"amd64", "arm64"}
@@ -822,4 +822,156 @@ func TestURLPathStructure(t *testing.T) {
 			t.Errorf("Unexpected URL structure: %s", binURL)
 		}
 	})
+}
+
+func TestGenerateMemKVDownloadsJSON(t *testing.T) {
+	semVerTag := "20261013082334.0.0"
+	releaseTag := "RELEASE.2026-10-13T08-23-34Z"
+
+	t.Run("release", func(t *testing.T) {
+		sub := generateMemKVDownloadsJSON(semVerTag, releaseTag, "memkv", "memkv", false).Subscriptions["Enterprise"]
+		for _, arch := range pkgArches {
+			linux, ok := sub.Linux["MemKV"][arch]
+			if !ok {
+				t.Fatalf("missing Linux entry for %s", arch)
+			}
+			base := "https://dl.min.io/aistor/memkv/release/linux-" + arch + "/"
+			want := map[string]*dlInfo{
+				base + "memkv": linux.Bin,
+				base + "memkv-" + semVerTag + "-1." + rpmArchMap[arch] + ".rpm": linux.RPM,
+				base + "memkv_" + semVerTag + "_" + debArchMap[arch] + ".deb":   linux.Deb,
+			}
+			for url, info := range want {
+				if info == nil {
+					t.Fatalf("%s: missing entry for %s", arch, url)
+				}
+				if info.Download != url {
+					t.Errorf("%s: download = %s, want %s", arch, info.Download, url)
+				}
+				if info.Checksum != url+".sha256sum" {
+					t.Errorf("%s: checksum = %s, want %s.sha256sum", arch, info.Checksum, url)
+				}
+				for _, step := range []string{"memkv setup", "memkv start --config /etc/memkv/config.yaml"} {
+					if !strings.Contains(info.Text, step) {
+						t.Errorf("%s: %s text lacks %q:\n%s", arch, url, step, info.Text)
+					}
+				}
+			}
+			podman := sub.Docker["MemKV"][arch].Podman
+			if podman == nil || !strings.Contains(podman.Text, "quay.io/minio/memkv:"+releaseTag) {
+				t.Errorf("%s: podman entry must pull the release tag, got %+v", arch, podman)
+			}
+		}
+	})
+
+	t.Run("edge", func(t *testing.T) {
+		sub := generateMemKVDownloadsJSON(semVerTag, "EDGE.2026-10-13T08-23-34Z", "memkv", "memkv", true).Subscriptions["Enterprise"]
+		if !strings.Contains(sub.Linux["MemKV"]["amd64"].Deb.Download, "/aistor/memkv/edge/linux-amd64/") {
+			t.Errorf("edge deb must use the edge path, got %s", sub.Linux["MemKV"]["amd64"].Deb.Download)
+		}
+		if len(sub.Docker) != 0 {
+			t.Errorf("edge must not list a container image, got %v", sub.Docker)
+		}
+	})
+}
+
+func TestPackageTemplateScopedContents(t *testing.T) {
+	dir := t.TempDir()
+	contents := filepath.Join(dir, "contents.yaml")
+	if err := os.WriteFile(contents, []byte(`- src: stage/${ARCH}/usr
+  dst: /usr
+  type: tree
+  packager: deb
+- src: stage/${ARCH}/ganesha.conf
+  dst: /etc/aistor-files/ganesha.conf
+  type: config|noreplace
+  packager: rpm
+  file_info:
+    mode: 0o600
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	extra, err := parseContentsFile(contents)
+	if err != nil {
+		t.Fatalf("parse contents: %v", err)
+	}
+	for i := range extra {
+		extra[i].Src = strings.ReplaceAll(extra[i].Src, "${ARCH}", "arm64")
+	}
+
+	mtmpl := template.Must(template.New("minio").Parse(tmpl))
+	var buf bytes.Buffer
+	if err := mtmpl.Execute(&buf, releaseTmpl{
+		App:           "aistor",
+		License:       "Test License",
+		ReleaseDir:    "minio-release",
+		Binary:        "minio",
+		Description:   "Test package",
+		OS:            "linux",
+		Arch:          "arm64",
+		Release:       "RELEASE.2025-03-12T00-00-00Z",
+		SemVerRelease: "20250312000000.0.0",
+		ExtraContents: extra,
+	}); err != nil {
+		t.Fatalf("execute template: %v", err)
+	}
+	config, err := nfpm.Parse(bytes.NewReader(buf.Bytes()))
+	if err != nil {
+		t.Fatalf("nfpm.Parse: %v\n%s", err, buf.String())
+	}
+
+	got := map[string]struct {
+		packager string
+		mode     os.FileMode
+	}{}
+	for _, c := range config.Contents {
+		var mode os.FileMode
+		if c.FileInfo != nil {
+			mode = c.FileInfo.Mode
+		}
+		got[c.Destination] = struct {
+			packager string
+			mode     os.FileMode
+		}{c.Packager, mode}
+	}
+	if g := got["/usr"]; g.packager != "deb" {
+		t.Errorf("/usr packager = %q, want deb", g.packager)
+	}
+	if g := got["/etc/aistor-files/ganesha.conf"]; g.packager != "rpm" || g.mode != 0o600 {
+		t.Errorf("ganesha.conf = %+v, want packager rpm mode 0600", g)
+	}
+	for dst, g := range got {
+		if strings.HasPrefix(dst, "/usr/local/bin/") && g.packager != "" {
+			t.Errorf("%s must ship in every format, got packager %q", dst, g.packager)
+		}
+	}
+}
+
+func TestMemKVDownloadsJSONNames(t *testing.T) {
+	linux := generateMemKVDownloadsJSON("20261013082334.0.0", "RELEASE.2026-10-13T08-23-34Z", "memkv-bin", "memkv-pkg", false).
+		Subscriptions["Enterprise"].Linux["MemKV"]["amd64"]
+
+	if !strings.HasSuffix(linux.Bin.Download, "/memkv-bin") || !strings.Contains(linux.Bin.Text, "sudo memkv-bin start") {
+		t.Errorf("binary entry must use the binary name:\n%s\n%s", linux.Bin.Download, linux.Bin.Text)
+	}
+	for name, info := range map[string]*dlInfo{"rpm": linux.RPM, "deb": linux.Deb} {
+		if !strings.Contains(info.Download, "/memkv-pkg") || !strings.Contains(info.Text, "sudo memkv-pkg start") {
+			t.Errorf("%s entry must use the package name:\n%s\n%s", name, info.Download, info.Text)
+		}
+	}
+	if !strings.Contains(linux.RPM.Text, "sudo dnf install ") || !strings.Contains(linux.Deb.Text, "sudo dpkg -i ") {
+		t.Errorf("package installs must run as root:\n%s\n%s", linux.RPM.Text, linux.Deb.Text)
+	}
+}
+
+func TestParseContentsFileRejectsUnknownPackager(t *testing.T) {
+	for _, packager := range []string{"deb,rpm", "debian", "RPM"} {
+		path := filepath.Join(t.TempDir(), "contents.yaml")
+		if err := os.WriteFile(path, []byte("- src: a\n  dst: /a\n  packager: "+packager+"\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := parseContentsFile(path); err == nil {
+			t.Errorf("packager %q: want an error", packager)
+		}
+	}
 }

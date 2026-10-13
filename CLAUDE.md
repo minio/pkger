@@ -35,13 +35,12 @@ Every app packages for **`linux/amd64` and `linux/arm64` only** — see `pkgArch
 | `ac`        | `mc-release`       | `mc`        | `mcli`       | date-based | `downloads-ac.json` (AIStor Client)          |
 | `sidekick`  | `sidekick-release` | `sidekick`  | `sidekick`   | date-based | `downloads-sidekick.json` (Linux + Windows)  |
 | `warp`      | `warp-release`     | `warp`      | `warp`       | semver     | `downloads-warp.json` (cross-platform)       |
-| `memkv`     | `memkv-release`    | `memkv`     | `memkv`      | date-based | empty document                               |
+| `memkv`     | `memkv-release`    | `memkv`     | `memkv`      | date-based | `downloads-memkv.json` (MemKV)               |
 | `aimem`     | `aimem-release`    | `aimem`     | `aimem`      | date-based | empty document                               |
-| `minfs`     | `minfs-release`    | `minfs`     | `minfs`      | date-based | empty document                               |
 
 `aistor` and `ac` were renamed from `minio-enterprise` and `mc-enterprise`. **Only the app name changed.** The release directory, the binary read from it, the package name, and every `dl.min.io` path segment are deliberately unchanged, so published artifacts are byte-identical across the rename. When touching `releaseDirName`, `defaultPkgName` or `defaultBinarySrcName`, re-key the switch on the new app name but keep the returned on-disk name.
 
-`memkv`, `aimem` and `minfs` fall through to `generateDownloadsJSON`, which intentionally returns an empty document — the packages ship, but these apps have no dl.min.io download page to link.
+`aimem` falls through to `generateDownloadsJSON`, which intentionally returns an empty document — the package ships, but it has no dl.min.io download page to link.
 
 ### Version Handling
 
@@ -101,7 +100,7 @@ pkger -r <release> --appName aistor --binary-name aistor --package-name aistor
 - `-e, --edge`: EDGE release URLs (`/edge/` path)
 - `-s, --scriptsDir`: directory with package scripts (preinstall.sh, postinstall.sh, preremove.sh, postremove.sh)
 - `-l, --license`: package license (default: `AGPLv3`)
-- `-c, --contents`: YAML file with extra nfpm content entries (supports `${ARCH}`)
+- `-c, --contents`: YAML file with extra nfpm content entries (supports `${ARCH}`). Each entry takes `src`, `dst`, an optional `type`, an optional `packager` (`deb`, `rpm` or `apk`) that limits it to one format, and an optional `file_info.mode`. To ship an entry in deb and rpm but not apk, list it once per format.
 - `--deps`: JSON file with per-format package dependencies
 - `--binary-name` / `--package-name`: override the source binary base name and the package/installed-command name; see README
 

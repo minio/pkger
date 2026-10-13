@@ -14,7 +14,6 @@ Every app packages for `linux/amd64` and `linux/arm64` only.
 | `warp`      | `warp-release`     | `warp`      | `warp`       | semver     |
 | `memkv`     | `memkv-release`    | `memkv`     | `memkv`      | date-based |
 | `aimem`     | `aimem-release`    | `aimem`     | `aimem`      | date-based |
-| `minfs`     | `minfs-release`    | `minfs`     | `minfs`      | date-based |
 
 `aistor` and `ac` keep the historical on-disk layout (`minio-release/`, `mc-release/`, `minio`/`mc` binaries, `minio`/`mcli` packages) — only the app name is rebranded. Override any of it with `--releaseDir`, `--binary-name` and `--package-name`.
 

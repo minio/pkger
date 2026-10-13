@@ -50,7 +50,7 @@ var (
 	releaseMatcher = regexp.MustCompile(`[0-9]`)
 
 	app     = kingpin.New("pkger", "Debian, RPMs and APKs for MinIO")
-	appName = app.Flag("appName", "Application name for the package: aistor, ac, sidekick, warp, memkv, aimem or minfs").
+	appName = app.Flag("appName", "Application name for the package: aistor, ac, sidekick, warp, memkv or aimem").
 		Default("aistor").
 		Short('a').
 		String()
@@ -108,10 +108,19 @@ var (
 			String()
 )
 
+// extraContent is one nfpm content entry. Packager limits the entry to a single
+// package format (deb, rpm or apk), for payloads that only run on one libc.
+// FileInfo.Mode is passed to nfpm verbatim, so octal forms such as 0o600 work.
 type extraContent struct {
-	Src  string `yaml:"src"`
-	Dst  string `yaml:"dst"`
-	Type string `yaml:"type,omitempty"`
+	Src      string       `yaml:"src"`
+	Dst      string       `yaml:"dst"`
+	Type     string       `yaml:"type,omitempty"`
+	Packager string       `yaml:"packager,omitempty"`
+	FileInfo *contentInfo `yaml:"file_info,omitempty"`
+}
+
+type contentInfo struct {
+	Mode string `yaml:"mode,omitempty"`
 }
 
 func parseContentsFile(path string) ([]extraContent, error) {
@@ -122,6 +131,13 @@ func parseContentsFile(path string) ([]extraContent, error) {
 	var contents []extraContent
 	if err := yaml.Unmarshal(data, &contents); err != nil {
 		return nil, err
+	}
+	for _, c := range contents {
+		switch c.Packager {
+		case "", "deb", "rpm", "apk":
+		default:
+			return nil, fmt.Errorf("%s: %s has packager %q, want one of deb, rpm or apk", path, c.Dst, c.Packager)
+		}
 	}
 	return contents, nil
 }
@@ -204,6 +220,13 @@ contents:
 {{- if .Type }}
   type: {{ .Type }}
 {{- end }}
+{{- if .Packager }}
+  packager: {{ .Packager }}
+{{- end }}
+{{- if and .FileInfo .FileInfo.Mode }}
+  file_info:
+    mode: {{ .FileInfo.Mode }}
+{{- end }}
 {{- end }}
 scripts:
 {{- range $name, $path := .Scripts }}
@@ -259,7 +282,7 @@ var debArchMap = map[string]string{
 }
 
 // pkgArches is every architecture pkger packages for. Every supported app
-// (aistor, ac, sidekick, warp, memkv, aimem, minfs) builds for exactly these
+// (aistor, ac, sidekick, warp, memkv, aimem) builds for exactly these
 // two; ppc64le went away with the community minio/mc packages.
 var pkgArches = []string{"amd64", "arm64"}
 
@@ -467,8 +490,80 @@ chmod +x %s
 	return d
 }
 
+// generateMemKVDownloadsJSON builds the min.io/download metadata for MemKV:
+// binary, rpm and deb install steps followed by drive setup and server start,
+// plus the container image. binFile is the raw binary filename and pkgFile is
+// the rpm/deb package name, which is also the command the packages install.
+// Container images are published only for releases, so EDGE metadata has no
+// Docker entry.
+func generateMemKVDownloadsJSON(semVerTag, releaseTag, binFile, pkgFile string, isEdge bool) enterpriseDownloadsJSON {
+	const product = "MemKV"
+	pathSegment := "release"
+	if isEdge {
+		pathSegment = "edge"
+	}
+
+	setup := func(cmd string) string {
+		return fmt.Sprintf(`sudo mkdir -p /etc/memkv
+sudo %[1]s setup --drives /dev/nvme0n1 /dev/nvme1n1 --rdma mlx5_0 | sudo tee /etc/memkv/config.yaml
+sudo %[1]s start --config /etc/memkv/config.yaml --license /path/to/minio.license`, cmd)
+	}
+
+	sub := downloadsJSON{
+		Kubernetes: make(map[string]map[string]downloadJSON),
+		Linux:      map[string]map[string]downloadJSON{product: {}},
+		Docker:     make(map[string]map[string]downloadJSON),
+		Windows:    make(map[string]map[string]downloadJSON),
+		MacOS:      make(map[string]map[string]downloadJSON),
+	}
+	if !isEdge {
+		sub.Docker[product] = map[string]downloadJSON{}
+	}
+
+	for _, arch := range pkgArches {
+		base := fmt.Sprintf("https://dl.min.io/aistor/memkv/%s/linux-%s/", pathSegment, arch)
+		rpm := fmt.Sprintf("%s-%s-1.%s.rpm", pkgFile, semVerTag, rpmArchMap[arch])
+		deb := fmt.Sprintf("%s_%s_%s.deb", pkgFile, semVerTag, debArchMap[arch])
+
+		sub.Linux[product][arch] = downloadJSON{
+			Bin: &dlInfo{
+				Download: base + binFile,
+				Checksum: base + binFile + ".sha256sum",
+				Text: fmt.Sprintf(`wget %[1]s%[2]s
+chmod +x %[2]s
+sudo mv %[2]s /usr/local/bin/
+%[3]s`, base, binFile, setup(binFile)),
+			},
+			RPM: &dlInfo{
+				Download: base + rpm,
+				Checksum: base + rpm + ".sha256sum",
+				Text: fmt.Sprintf(`sudo dnf install %s%s
+%s`, base, rpm, setup(pkgFile)),
+			},
+			Deb: &dlInfo{
+				Download: base + deb,
+				Checksum: base + deb + ".sha256sum",
+				Text: fmt.Sprintf(`wget %s%s
+sudo dpkg -i %s
+%s`, base, deb, deb, setup(pkgFile)),
+			},
+		}
+
+		if !isEdge {
+			sub.Docker[product][arch] = downloadJSON{
+				Podman: &dlInfo{
+					Text: fmt.Sprintf(`podman pull quay.io/minio/memkv:%s
+podman run quay.io/minio/memkv:%s --version`, releaseTag, releaseTag),
+				},
+			}
+		}
+	}
+
+	return enterpriseDownloadsJSON{Subscriptions: map[string]downloadsJSON{"Enterprise": sub}}
+}
+
 // generateDownloadsJSON is the fallback metadata generator for apps that have no
-// dl.min.io download page of their own (memkv, aimem, minfs). It intentionally
+// dl.min.io download page of their own (aimem). It intentionally
 // produces an empty document: the packages ship, but there is nothing to link.
 func generateDownloadsJSON() downloadsJSON {
 	return downloadsJSON{
@@ -682,6 +777,8 @@ func main() {
 	case "aistor", "ac":
 		semVerTag := semVerRelease(*release)
 		d = generateEnterpriseDownloadsJSON(semVerTag, *appName, *release, binarySrcName(*appName, *binaryName), pkgName(*appName, *packageName), *edge)
+	case "memkv":
+		d = generateMemKVDownloadsJSON(semVerRelease(*release), *release, binarySrcName(*appName, *binaryName), pkgName(*appName, *packageName), *edge)
 	case "sidekick":
 		semVerTag := semVerRelease(*release)
 		d = generateSidekickDownloadsJSON(semVerTag, *release)
@@ -895,11 +992,6 @@ func doPackage(appName, license, release, packager, deps, scriptsDir, binaryName
   It mounts a MinIO AIStor bucket as a POSIX-correct workspace with
   hydrated agent memory and KMS-backed secrets via MinKMS.`
 				}
-				if appName == "minfs" {
-					return `minfs is the cache-tier mount for MinIO AIStor.
-  It serves MinIO AIStor reads through a local on-disk or
-  distributed cache cluster.`
-				}
 				return `MinIO is a High Performance Object Storage released under AGPLv3.
   It is API compatible with Amazon S3 cloud storage service. Use MinIO to build
   high performance infrastructure for machine learning, analytics and application
@@ -921,11 +1013,9 @@ func doPackage(appName, license, release, packager, deps, scriptsDir, binaryName
 			ExtraContents: func() []extraContent {
 				expanded := make([]extraContent, len(extraContents))
 				for i, c := range extraContents {
-					expanded[i] = extraContent{
-						Src:  strings.ReplaceAll(c.Src, "${ARCH}", arch),
-						Dst:  strings.ReplaceAll(c.Dst, "${ARCH}", arch),
-						Type: c.Type,
-					}
+					c.Src = strings.ReplaceAll(c.Src, "${ARCH}", arch)
+					c.Dst = strings.ReplaceAll(c.Dst, "${ARCH}", arch)
+					expanded[i] = c
 				}
 				return expanded
 			}(),
